@@ -87,16 +87,16 @@
     <Folder Include="Properties\" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\NmApp1\MijMacros\MijMacros.nproj">
-      <Name>MijMacros</Name>
-      <Project>{d716a441-ef80-42b8-8f25-ab3c01a8f620}</Project>
-      <Private>True</Private>
-    </ProjectReference>
     <ProjectReference Include="..\KGDAsm\KGDAsm.nproj">
       <Name>KGDAsm</Name>
       <Project>{eb94bba4-77aa-4a32-985b-c42ca54a4e13}</Project>
       <Private>True</Private>
     </ProjectReference>
+    <MacroProjectReference Include="..\MijMacros\MijMacros.nproj">
+      <Name>MijMacros</Name>
+      <Project>{d716a441-ef80-42b8-8f25-ab3c01a8f620}</Project>
+      <Private>False</Private>
+    </MacroProjectReference>
   </ItemGroup>
   <Import Project="$(Nemerle)\Nemerle.MSBuild.targets" />
   <!--

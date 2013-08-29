@@ -85,12 +85,6 @@
       <HintPath>$(Nemerle)\Nemerle.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <MacroReference Include="MijMacros, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <Name>MijMacros</Name>
-      <AssemblyName>MijMacros.dll</AssemblyName>
-      <HintPath>..\..\NmApp1\MijMacros\bin\Release\MijMacros.dll</HintPath>
-      <Private>False</Private>
-    </MacroReference>
     <MacroReference Include="Nemerle.Linq">
       <HintPath>$(Nemerle)\Nemerle.Linq.dll</HintPath>
     </MacroReference>
@@ -115,6 +109,13 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />
+  </ItemGroup>
+  <ItemGroup>
+    <MacroProjectReference Include="..\MijMacros\MijMacros.nproj">
+      <Name>MijMacros</Name>
+      <Project>{d716a441-ef80-42b8-8f25-ab3c01a8f620}</Project>
+      <Private>False</Private>
+    </MacroProjectReference>
   </ItemGroup>
   <Import Project="$(Nemerle)\Nemerle.MSBuild.targets" />
   <!--

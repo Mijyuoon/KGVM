@@ -95,12 +95,6 @@
       <HintPath>$(Nemerle)\Nemerle.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <MacroReference Include="MijMacros, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <Name>MijMacros</Name>
-      <AssemblyName>MijMacros.dll</AssemblyName>
-      <HintPath>..\..\NmApp1\MijMacros\bin\Release\MijMacros.dll</HintPath>
-      <Private>False</Private>
-    </MacroReference>
     <MacroReference Include="Nemerle.Linq">
       <HintPath>$(Nemerle)\Nemerle.Linq.dll</HintPath>
     </MacroReference>
@@ -153,6 +147,11 @@
       <Project>{ca7bef75-35a7-4a8b-b26a-727ff2eb1353}</Project>
       <Private>True</Private>
     </ProjectReference>
+    <MacroProjectReference Include="..\MijMacros\MijMacros.nproj">
+      <Name>MijMacros</Name>
+      <Project>{d716a441-ef80-42b8-8f25-ab3c01a8f620}</Project>
+      <Private>False</Private>
+    </MacroProjectReference>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="MainForm.resx">
@@ -163,6 +162,10 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="config.yml">
+      <SubType>Content</SubType>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Data\font.png">
       <SubType>Content</SubType>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

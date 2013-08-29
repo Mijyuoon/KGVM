@@ -1,0 +1,42 @@
+﻿using Nemerle;
+using Nemerle.Collections;
+using Nemerle.Compiler;
+using Nemerle.Text;
+using Nemerle.Utility;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace MijMacro {
+    macro @fori(exp,step,body) syntax("fori","(",exp,Optional("by",step),")",body){
+        def step = if(step == null) <[ 1 ]> else step;
+        match(exp){
+            | <[ $min <  $i <  $max ]> => <[ for(mutable $i = $min+1; $i <  $max; $i += $step) $body ]>
+            | <[ $min <= $i <= $max ]> => <[ for(mutable $i = $min;   $i <= $max; $i += $step) $body ]>
+            | <[ $min <  $i <= $max ]> => <[ for(mutable $i = $min+1; $i <= $max; $i += $step) $body ]>
+            | <[ $min <= $i <  $max ]> => <[ for(mutable $i = $min;   $i <  $max; $i += $step) $body ]>
+            | <[ $max >  $i >  $min ]> => <[ for(mutable $i = $max-1; $i >  $min; $i -= $step) $body ]>
+            | <[ $max >= $i >  $min ]> => <[ for(mutable $i = $max;   $i >  $min; $i -= $step) $body ]>
+            | <[ $max >  $i >= $min ]> => <[ for(mutable $i = $max-1; $i >= $min; $i -= $step) $body ]>
+            | <[ $max >= $i >= $min ]> => <[ for(mutable $i = $max;   $i >= $min; $i -= $step) $body ]>
+            | _ => Message.Error(exp.Location, $"Syntax error: '$exp'"); <[ () ]>
+        }
+    }
+    
+    macro @die(body) syntax("die",Optional(body)){
+        match(body){
+            | null      => <[ throw Exception() ]>;
+            | _         => <[ throw Exception($body) ]>;
+        }
+    }
+    
+    macro @ignore(expr) syntax("ignore",expr) {
+        match(expr) {
+            | <[ {.. $exps} ]> =>
+                def mx = exps.Map((x) => <[ _ = $x ]>);
+                <[ {.. $mx} ]>;
+            | _ => <[ _ = $expr ]>;
+        }
+    }
+}
