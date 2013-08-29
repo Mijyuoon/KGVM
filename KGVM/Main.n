@@ -1,0 +1,357 @@
+﻿using Nemerle.Collections;
+using Nemerle.Text;
+using Nemerle.Utility;
+using Nemerle.Extensions;
+using Nemerle.Imperative;
+
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Runtime.InteropServices;
+using System.Linq;
+
+using MijMacro;
+
+namespace MijStuff.VM2 {
+    
+    public enum Flags {
+        | Run = 1
+        | Zero = 1 << 1
+        | Equal = 1 << 2
+        | Above = 1 << 3
+        | Below = 1 << 4
+    }
+    
+    [StructLayout(LayoutKind.Explicit)]
+    public struct FloatInt {
+        [FieldOffset(0)]
+        public mutable IntVal : int;
+        [FieldOffset(0)]
+        public mutable FVal : float;
+    }
+
+    public class VMI {
+        public mutable Size : int;
+        public mutable Func : (KGVM -> void);
+        public this(func : (KGVM -> void), size : int = 0) {
+            this.Size = size; this.Func = func;
+        }
+    }
+    
+    public class Scope {
+        public mutable StackPtr : int?;
+        public mutable Locals : int;
+        mutable LocArr : array[int];
+        
+        public Loc[idx : int] : int {
+            get {
+                if(idx >= 0 && idx < Locals) LocArr[idx] else 0;
+            }
+            set { 
+                when(idx >= 0 && idx < Locals) LocArr[idx] = value; 
+            }
+        }
+        public PurgeLocals() : void {
+            fori(0 <= i < Locals)
+                LocArr[i] = 0;
+        }
+        public this(locals : int) {
+            this.Locals = locals;
+            this.LocArr = array(locals);
+        }
+    }
+    
+    public class Operand {
+        mutable VM : KGVM;
+        public mutable Pointer : bool;
+        public mutable PayLoad : int;
+        public mutable VType : int;
+        
+        public Data : int {
+            get { match(VType) {
+                | 0 when (Pointer) => VM.MemE[PayLoad, 1];
+                | 1 when (Pointer) => VM.MemE[PayLoad, 2];
+                | 2 when (Pointer) => VM.MemE[PayLoad, 4];
+                | 4 when (Pointer) => VM.MemE[VM.STK.Pop(), 1];
+                | 5 when (Pointer) => VM.MemE[VM.STK.Pop(), 2];
+                | 6 when (Pointer) => VM.MemE[VM.STK.Pop(), 4];
+                | 0 => PayLoad & 0xFF;
+                | 1 => PayLoad & 0xFFFF;
+                | 2 => PayLoad;
+                | 4 => VM.STK.Pop() & 0xFF;
+                | 5 => VM.STK.Pop() & 0xFFFF;
+                | 6 => VM.STK.Pop();
+                | v => throw VmBadOperand(v);
+            }}
+            set { match(VType) {
+                | 0 when (Pointer) => VM.MemE[PayLoad, 1] = value;
+                | 1 when (Pointer) => VM.MemE[PayLoad, 2] = value;
+                | 2 when (Pointer) => VM.MemE[PayLoad, 4] = value;
+                | 4 when (Pointer) => VM.MemE[VM.STK.Pop(), 1] = value;
+                | 5 when (Pointer) => VM.MemE[VM.STK.Pop(), 2] = value;
+                | 6 when (Pointer) => VM.MemE[VM.STK.Pop(), 4] = value;
+                | 0 | 1 | 2 | 4 | 5 | 6 => ();
+                | v => throw VmBadOperand(v);
+            }}
+        }
+        
+        public Change(Pointer : bool, VType : int, PayLoad : int) : void {
+            this.Pointer = Pointer; this.VType = VType; this.PayLoad = PayLoad;
+        }
+        
+        public this(vm : KGVM) {
+            this.VM = vm;
+        }
+    }
+    
+    public class Instruction {
+        mutable VM : KGVM;
+        public mutable Opcode : int;
+        public mutable OperNum : int;
+        public mutable Operands : array[Operand];
+        
+        public this(vm : KGVM) {
+            this.VM = vm; Operands = array(16);
+            fori(0 <= i < 16) 
+                Operands[i] = Operand(VM);
+        }
+        
+        public Op[idx : int] : int {
+            get { Operands[idx].Data; }
+            set { Operands[idx].Data = value; }
+        }
+        
+        public Decode(mutable addr : ref int) : void {
+            Opcode = VM.MemI[addr]; addr++;
+            def byte2 = VM.MemI[addr]; addr++;
+            OperNum = byte2 >> 4;
+            fori(0 <= i < OperNum) {
+                def bin = VM.MemI[addr]; addr++;
+                def pl = (bin >> 3) & 7;
+                Operands[i].Change(
+                    (bin & 64) > 0,
+                    bin & 7,
+                    VM.MemE[addr, pl]
+                ); addr += pl;
+            }
+        }
+    }
+    
+    public class VStack[T] {
+        mutable MEM : array[T];
+        mutable PTR : int;
+        mutable SYSTEM : bool;
+        public this(size : int, isSys : bool) {
+            this.MEM = array(size); 
+            this.PTR = -1; this.SYSTEM = isSys;
+        }
+        public Data[idx : int] : T {
+            get { MEM[idx]; }
+            set { MEM[idx] = value; }
+        }
+        public DataR[idx : int] : T {
+            get { MEM[PTR+idx]; }
+            set { MEM[PTR+idx] = value; }
+        }
+        public Pointer : int {
+            get { PTR; }
+            set { PTR = value; }
+        }
+        public Push(val : T) : void {
+            when(PTR == MEM.Length-1) 
+                throw VmStackOverflow(SYSTEM);
+            PTR++; MEM[PTR] = val;
+        }
+        public Pop() : T {
+            when(PTR < 0) 
+                throw VmStackUnderflow(SYSTEM);
+            def ret = MEM[PTR]; PTR--; ret;
+        }
+        public Peek(num : int) : T {
+            when(PTR < num)
+                throw VmStackUnderflow(SYSTEM);
+            MEM[PTR+num];
+        }
+        public Swap() : void {
+            when(PTR < 1) 
+                throw VmStackUnderflow(SYSTEM);
+            MEM[PTR] <-> MEM[PTR-1];
+        }
+        public Swap(num : int) : void {
+            when(PTR < num-1) 
+                throw VmStackUnderflow(SYSTEM);
+            def last = PTR - num + 1;
+            fori(0 <= i < num/2) 
+                MEM[last+i] <-> MEM[PTR-i];
+        }
+        public Dup() : void {
+            Push(Peek(0));
+        }
+        public Dup(num : int) : void {
+            def last = PTR + num;
+            when(PTR < num-1) 
+                throw VmStackUnderflow(SYSTEM);
+            when(last >= MEM.Length) 
+                throw VmStackOverflow(SYSTEM);
+            fori(0 <= i < num) 
+                MEM[last-i] = MEM[PTR-i];
+            PTR = last;
+        }
+    }
+    
+    public class KGVM {
+        //mutable INS : Dictionary[int,VMI];
+        mutable INS : array[VMI];
+        mutable MEM : array[byte];
+        public mutable STK : VStack[int];
+        public mutable SSR : VStack[int];
+        mutable FLG : BitVector32;
+        public mutable ITT : Instruction;
+        public mutable DEV : List[Device];
+        public mutable INTV : VStack[int];
+        public mutable SCPV : VStack[Scope];
+        public mutable PC : int;
+        
+        public Instr[idx : int] : VMI {
+            set { INS[idx] = value; }
+        }
+        
+        public Instr[idx : Instr] : VMI {
+            set { INS[idx :> int] = value; }
+        }
+        
+        public MemSize : int { get { MEM.Length; } }
+        
+        public Flg[idx : Flags] : bool {
+            get { FLG[idx :> int]; }
+            set { FLG[idx :> int] = value; }
+        }
+        
+        public Flg[idx : int] : bool {
+            get { FLG[idx]; }
+            set { FLG[idx] = value; }
+        }
+        
+        public MemI[idx : int] : byte {
+            get {
+                when(idx < 0 || idx >= MEM.Length)
+                    throw VmMemoryError(idx);
+                MEM[idx];
+            }
+            set {
+                when(idx < 0 || idx >= MEM.Length)
+                    throw VmMemoryError(idx);
+                MEM[idx] = value;
+            }
+        }
+        
+        public MemE[idx : int, size : int] : int {
+            get {
+                try match(size) {
+                    | 0 => 0;
+                    | 1 => MEM[idx];
+                    | 2 => BitConverter.ToInt16(MEM,idx);
+                    | 4 => BitConverter.ToInt32(MEM,idx);
+                    | _ => throw VmBadOperand(size);
+                } catch {
+                    | _ is ArgumentException =>
+                        throw VmMemoryError(idx);
+                    | _ is ArgumentOutOfRangeException =>
+                        throw VmMemoryError(idx);
+                    | _ is IndexOutOfRangeException =>
+                        throw VmMemoryError(idx);
+                }
+            }
+            set {
+                try match(size) {
+                    | 0 => ();
+                    | 1 => MEM[idx] = (value & 0xFF) :> byte;
+                    | 2 | 4 =>
+                        def data = BitConverter.GetBytes(value);
+                        fori(0 <= i < size)
+                            MEM[idx+i] = data[i];
+                    | _ => throw VmBadOperand(size);
+                } catch {
+                    | _ is ArgumentException =>
+                        throw VmMemoryError(idx);
+                    | _ is ArgumentOutOfRangeException =>
+                        throw VmMemoryError(idx);
+                    | _ is IndexOutOfRangeException =>
+                        throw VmMemoryError(idx);
+                }
+            }
+        }
+        
+        public static @>>>(a : int, b : int) : int {
+            unchecked(((a :> uint) >> b) :> int);
+        }
+        
+        public LdMem(data : array[byte], moffset : int, doffset : int) : void {
+            fori(0 <= i < data.Length-doffset)
+                MemI[i+moffset] = data[i+doffset];
+        }
+        
+        public LdMem(data : array[int], moffset : int, doffset : int) : void {
+            fori(0 <= i < data.Length-doffset)
+                MemI[i+moffset] = (data[i+doffset] & 0xFF) :> byte;
+        }
+        
+        public ProcessIRQ(number : int) : bool {
+            when(INTV.Pointer > -1) {
+                def type = number / 16;
+                when(number == INTV.Peek(0)) 
+                    return false;
+                when(type >= INTV.Peek(0)) {
+                    when(type == 0) {
+                        Flg[Flags.Run] = false;
+                        throw VmGeneralError();
+                    } return false;
+                }
+            } SSR.Push(PC);
+            PC = MemE[256 + number*4, 4];
+            INTV.Push(number); true;
+        }
+        
+        public this(memsize : int, stksize : int, vstksize : int, locals : int) {
+            this.INS = array(Instr.COUNT :> int);
+            this.MEM = array(memsize);
+            this.STK = VStack(stksize, false);
+            this.SSR = VStack(stksize, false);
+            this.INTV = VStack(vstksize/4, true);
+            this.SCPV = VStack(vstksize, true);
+            this.FLG = BitVector32();
+            this.ITT = Instruction(this);
+            this.DEV = List();
+            
+            this.SCPV.Push(Scope(locals));
+            this.Instr[Instr.Brk] = VMI(fun(vm){ 
+                vm.Flg[Flags.Run] = false; 
+            });
+        }
+        
+        public Init(addr : int) : void {
+            DEV.Iter( (x) => x.Reset() );
+            PC = addr; Flg[Flags.Run] = true;
+            Flg[Flags.Zero | Flags.Above | Flags.Below | Flags.Equal] = false;
+        }
+        
+        public Step(debug : bool) : void {
+            when(Flg[Flags.Run] || debug) {
+                try {
+                    ITT.Decode(ref PC);
+                    def opc = ITT.Opcode;
+                    when(opc >= INS.Length || INS[opc] == null)
+                        throw VmBadOpcode(opc);
+                    def instr = INS[opc];
+                    when(instr.Size > -1 && ITT.OperNum != instr.Size)
+                        throw VmBadOpcode(opc);
+                    instr.Func(this);
+                } catch {
+                    | e is Exception when(e is VmException) =>
+                        def inter = (e :> VmException);
+                        ignore ProcessIRQ(if(inter.SYS) 15 else inter.INT);
+                }
+            }
+        }
+    }
+}

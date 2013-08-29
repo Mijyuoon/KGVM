@@ -1,0 +1,143 @@
+﻿using System.Collections.Generic;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Runtime.InteropServices;
+using VOperand = MijStuff.VM2.Asm.Operand;
+
+COMPILER Code
+$namespace=MijStuff.VM2.Asm
+
+    [StructLayout(LayoutKind.Explicit, Size = 4)]
+    public struct FloatInt {
+        [FieldOffset(0)]
+        public int IntVal;
+        [FieldOffset(0)]
+        public float FVal;
+    }
+
+    int TypeDec(string tv) { switch(tv) {
+        case "b": return 1;
+        case "h": return 2;
+        case "w": return 4;
+        default: return 0;
+    }}
+
+    int InstrDec(string ix) {
+        Instr val;
+        ix = ix.Replace("_","ಠ_ಠ").Replace(".", "_");
+        var succ = Instr.TryParse(ix, true, out val);
+        return (succ ? (int)val : -1);
+    }
+
+    int DecNumber(string val) {
+        if(val.EndsWith("f") || val.EndsWith("F")) {
+            var Conv = new FloatInt();
+            Conv.FVal = Convert.ToSingle(val.TrimEnd('f','F'));
+            return Conv.IntVal;
+        } return Convert.ToInt32(val);
+    }
+
+    string EscapeChars(string input) {
+        return Regex.Replace(input, @"\\(.)", delegate(Match mx) {
+            switch(mx.Groups[1].Value) {
+                case "\\": return "\\";
+                case "q": return "\"";
+                default: return "";
+            }
+        });
+    }
+
+    public List<Instruction> instructions;
+    public Dictionary<string, Label> labels;
+    private int instr_idx = 0;
+
+IGNORECASE
+CHARACTERS
+    digit = '0' .. '9'.
+    hexdigit = '0' .. '9' + 'a' .. 'f'.
+    letter = 'a' .. 'z'.
+    strchr = ANY - '\n' - '\r' - '"'.
+
+TOKENS
+    dec_number = ["-"] digit {digit} ["." digit {digit} "f"].
+    hex_number = "0x" hexdigit {hexdigit}.
+    string = '"' {strchr} '"'.
+    ident = letter {letter | digit | "_"}.
+    subident = "." (letter | digit) {letter | digit}.
+
+COMMENTS FROM ";" TO '\n'
+
+IGNORE '\t' + '\r' + '\n'
+
+PRODUCTIONS
+    Constant<ref int? value>
+    =	hex_number (. value = Convert.ToInt32(t.val,16); .)
+        | dec_number (. value = DecNumber(t.val); .).
+          
+
+    Stack<ref int? value>
+    =	"s" (. value = null; .).
+
+    MOperand<Instruction inst> (. bool p=false, ff=false; int? val=null; string tt="w"; .)
+    =	["*" (. p=true; .)] 
+        ( (["$" (. ff=true; .)] Constant<ref val>) | Stack<ref val> )
+        ["(" ("b" | "h" | "w") (. tt=t.val; .) ")"] 
+        (. if(val==null) inst.Operands.Add(VOperand.FromStack(TypeDec(tt),p));
+           else inst.Operands.Add(VOperand.FromNumber(val.Value,TypeDec(tt),p,ff)); .).
+
+    LOperand<Instruction inst> (. bool p=false; string lb; string tt="w"; .)
+    =	("%" | "&" (. p=true; .)) ident (. lb=t.val; .)
+        ["(" ("b" | "h" | "w") (. tt=t.val; .) ")"] 
+        (. inst.Operands.Add(VOperand.FromLabel(lb,TypeDec(tt),p)); .).
+
+    Operand<Instruction inst>
+    =	MOperand<inst> | LOperand<inst>.
+
+    Instruction (. int op=0; string inx; .)
+    =	SYNC ident (. inx=t.val; .) {subident (. inx+=t.val; .)}
+              (. op = InstrDec(inx); 
+                 if(op<0) SemErr("Invalid instruction: "+t.val); 
+                 var inst = new Instruction(op); .)
+        [ "[" {Operand<inst>} "]" ] (. instructions.Add(inst); instr_idx++; .).
+
+    LabelDef (. string lb; .)
+    =	SYNC "|" ident (. lb=t.val; .) "|"
+        (. if(labels.ContainsKey(lb))
+             SemErr("Duplicate label \""+lb+"\"");
+           labels[lb] = new Label(lb,instr_idx); .).
+
+    DataPayload<DataInstruction dat> (. int? val=0; .)
+    =	string (. dat.Append(EscapeChars(t.val)); .)
+        | Constant<ref val> (. dat.Append(val.Value); .).
+
+    DataInstruction (. var dat = new DataInstruction(); .)
+    =	SYNC "!db" "[" DataPayload<dat> { WEAK "," DataPayload<dat> } "]"
+        (. instructions.Add(dat); instr_idx++; .).
+    
+    RDataInstruction (. var dat = new DataInstruction(); int? val=0, rep=0; .)
+    =	SYNC "!rep" "[" Constant<ref val> WEAK "," Constant<ref rep> "]"
+        (. for(int i = 0; i < rep.Value; i++) dat.Append(val.Value);
+           instructions.Add(dat); instr_idx++; .).
+
+    OffsetInstruction (. int? offset=0; .)
+    =	SYNC "!org" "[" Constant<ref offset> "]"
+        (. var dat = new OffsetInstruction(offset.Value);
+           instructions.Add(dat); instr_idx++; .).
+
+    FileInstruction (. string fn; .)
+    =	SYNC "!fi" "[" string (. fn = t.val.Trim('"'); .) "]"
+        (. var dat = new FileInstruction(fn);
+           instructions.Add(dat); instr_idx++; .).
+
+    CompilerOptions
+    =	DataInstruction
+        | RDataInstruction
+        | OffsetInstruction
+        | FileInstruction.
+
+    Code
+    =	"@program" { Instruction | LabelDef | CompilerOptions }.
+
+END Code.
+        
+        

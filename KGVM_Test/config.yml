@@ -1,0 +1,9 @@
+memorySize: 33480
+systemPerf: 1200
+stackSize: 512
+stackSizeV: 80
+initLocals: 32
+progFileName: program.kgvm
+enableDevices:
+  - ConsoleDisplay
+  - Keyboard

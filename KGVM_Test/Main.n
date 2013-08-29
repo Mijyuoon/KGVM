@@ -1,0 +1,17 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Windows.Forms;
+using MijStuff.VM2.Test;
+
+module Program {
+    public mutable MAIN : MainForm;
+    public mutable MON : MonitorForm;
+    Main(args : array[string]) : void {
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+        def filenm = if(args.Length > 0) args[0] else "";
+        MAIN = MainForm(filenm);
+        MON = MonitorForm(MAIN);
+        Application.Run(MAIN);
+    }
+}

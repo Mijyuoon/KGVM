@@ -1,0 +1,292 @@
+﻿using Nemerle;
+using Nemerle.Collections;
+using Nemerle.Text;
+using Nemerle.Utility;
+using Nemerle.Imperative;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.IO;
+
+using SFML.Window;
+using SFML.Graphics;
+
+using MijMacro;
+using Texter;
+using GE = System.Collections.Generic;
+
+namespace MijStuff.VM2 {
+    
+    public abstract class Device : IDisposable {
+        public abstract Reset() : void;
+        public abstract Receive(port : int, data : int) : void;
+        public abstract Request(port : int) : int?;
+        
+        public virtual Dispose() : void {
+            
+        }
+    }
+    
+    public class Motherboard : Device {
+        mutable VM : KGVM;
+        mutable Rnd : Random;
+        public this(_ : RenderWindow, VM : KGVM) {
+            this.VM = VM; Rnd = Random();
+        }
+        public override Reset() : void {
+            // Nothing
+        }
+        public override Receive(port : int, data : int) : void {
+            match(port) {
+             | 11 => Rnd = Random(data);
+             | _ => ();
+            }
+        }
+        public override Request(port : int) : int? {
+            | 10 => VM.MemSize;
+            | 11 => Rnd.Next();
+            | _ => null;
+        }
+    }
+    
+    public class GraphicDisplay : Device {
+        mutable VM : KGVM;
+        mutable Wnd : RenderWindow;
+        mutable Mem : array[byte];
+        mutable Tex : Texture;
+        mutable Sprt : Sprite;
+        mutable XX : int; mutable YY : int;
+        mutable Wx : int; mutable Wy : int;
+        mutable Mode : int;
+        public this(Wnd : RenderWindow, VM : KGVM) {
+            this.VM = VM; this.Wnd = Wnd;
+            this.Wx = Wnd.Size.X :> int;
+            this.Wy = Wnd.Size.Y :> int;
+            this.Mem = array(this.Wx*this.Wy*4);
+            this.Tex = Texture(Wnd.Size.X, Wnd.Size.Y);
+            this.Sprt = Sprite(this.Tex);
+        }
+        public override Reset() : void {
+            Mode = 0;
+            Wnd.Clear(Color.Black);
+            Wnd.Display();
+            fori(0 <= i < Wx*Wy*4 by 4) {
+                Mem[i] = 0;
+                Mem[i+1] = 0;
+                Mem[i+2] = 0;
+                Mem[i+3] = 255;
+            }
+        }
+        public override Receive(port : int, data : int) : void {
+            match(port) {
+                | 101 => XX = data;
+                | 102 => YY = data;
+                | 103 => Mode = (data&3);
+                | 104 =>
+                    match(Mode) {
+                        | 0 => 
+                            Mem[YY*32768+XX] = (data&255) :> byte;
+                        | 1 =>
+                            // OBSOLETE. Don't use.
+                            def loc = (YY*Wx+XX)*4;
+                            def color = (data&255) :> byte;
+                            when((data&256) > 0) Mem[loc] = color;
+                            when((data&512) > 0) Mem[loc+1] = color;
+                            when((data&1024) > 0) Mem[loc+2] = color;
+                            when((data&2048) > 0) Mem[loc+3] = color;
+                        | 2 =>
+                            def loc = (YY*Wx+XX)*4;
+                            Mem[loc] = (data & 255) :> byte;
+                            Mem[loc+1] = ((data >> 8) & 255) :> byte;
+                            Mem[loc+2] = ((data >> 16) & 255) :> byte;
+                        | _ => ();
+                    }
+                | 105 when (data > 0) =>
+                    Tex.Update(Mem);
+                    Wnd.Draw(Sprt); 
+                    Wnd.Display();
+                | _ => ();
+            }
+        }
+        public override Request(port : int) : int? {
+            | 101 => XX;
+            | 102 => YY;
+            | 103 => Mode;
+            | 104 =>
+                match(Mode) {
+                    | 0 => Mem[YY*32768+XX];
+                    | _ =>
+                        def loc = (YY*Wx+XX)*4;
+                        (Mem[loc] | (Mem[loc+1] << 8) | (Mem[loc+2] << 16));
+                }
+            | _ => null;
+        }
+        public override Dispose() : void {
+            this.Mem = null;
+            this.Tex.Dispose();
+        }
+    }
+    
+    public class ConsoleDisplay : Device {
+        mutable VM : KGVM;
+        mutable Wnd : RenderWindow;
+        //mutable Mem : array[byte];
+        mutable Tdx : Texter.TextDisplay;
+        mutable Ptr : int;
+        mutable Mode : int;
+        mutable Wx : int;
+        
+        public this(Wnd : RenderWindow, VM : KGVM) {
+            this.Wnd = Wnd; this.VM = VM;
+            this.Mode = 0;
+            //this.Mem = array(80*25*2);
+            Texter.TextDisplay.Initialize(10,16);
+            this.Tdx = Texter.TextDisplay(80,36);
+            this.Wx = this.Tdx.Width :> int;
+        }
+        
+        public override Receive(port : int, data : int) : void {
+            match(port) {
+                | 180 => Ptr = data;
+                | 181 => Mode = (data&3);
+                | 182 when (data < 0) =>
+                    Tdx.Clear( Character.Create(0,0,0) ); 
+                    Tdx.Draw(Wnd, Vector2f(0,0));
+                    Wnd.Display();
+                | 182 =>
+                    def (x,y) = (Ptr%Wx, Ptr/Wx);
+                    def chi = Tdx.Get(x,y);
+                    Tdx.Set(x,y, Character.Create(data & 255, chi.Foreground, chi.Background));
+                    when(Mode&1 == 1){ 
+                        Tdx.Draw(Wnd, Vector2f(0,0));
+                        Wnd.Display(); 
+                    }
+                | 183 =>
+                    def (x,y) = (Ptr%Wx, Ptr/Wx);
+                    def chi = Tdx.Get(x,y);
+                    Tdx.Set(x,y, Character.Create(chi.Glyph, data & 255, (data >> 8) & 255));
+                    when(Mode&1 == 1){ 
+                        Tdx.Draw(Wnd, Vector2f(0,0));
+                        Wnd.Display(); 
+                    }
+                | 184 when (data > 0) =>
+                    Tdx.Draw(Wnd, Vector2f(0,0));
+                    Wnd.Display();
+                | _ => ();
+            }
+        }
+        
+        public override Request(port : int) : int? {
+            | 180 => Ptr;
+            | 181 => Mode;
+            | 182 =>
+                Tdx.Get(Ptr%Wx, Ptr/Wx).Glyph
+            | 183 =>
+                def chi = Tdx.Get(Ptr%Wx, Ptr/Wx);
+                (chi.Foreground | (chi.Background << 8));
+            | _ => null;
+        }
+        
+        public override Reset() : void {
+            Tdx.Clear(Character.Create(' '));
+            Wnd.Clear(Color.Black); Wnd.Display();
+        }
+    }
+    
+    public class Keyboard : Device {
+        mutable VM : KGVM;
+        mutable Keys : GE.Queue[int];
+        
+        public this(_ : RenderWindow, VM : KGVM) {
+            this.VM = VM; this.Keys = GE.Queue();
+        }
+        
+        public override Receive(_ : int, _ : int) : void {
+            // Nothing
+        }
+        
+        public override Request(port : int) : int? {
+            match(port) {
+                | 120 => Keys.Count;
+                | 121 => 
+                    if(Keys.Count > 0) Keys.Dequeue() else 0;
+                | _ => null;
+            }
+        }
+        
+        public override Reset() : void {
+            Keys.Clear();
+        }
+        
+        public QueueKey(Key : int) : void {
+            while(Keys.Count > 16) ignore Keys.Dequeue();
+            Keys.Enqueue(Key);
+        }
+    }
+    
+    public class HardDrive : Device {
+        mutable VM : KGVM;
+        mutable DiskImage : FileStream;
+        mutable VBuffer : array[byte];
+        mutable LastError : ErrorCode;
+        mutable CurSector : int;
+        mutable SectorCount : int;
+        
+        public static mutable BytesPerSector = 512;
+        enum ErrorCode {
+            | NoError
+            | BadSector
+        }
+        
+        public override Reset() : void {
+            LastError = ErrorCode.NoError; CurSector = 0;
+        }
+        
+        public override Receive(port : int, data : int) : void {
+            match(port) {
+                | 90 => CurSector = data;
+                | 91 => 
+                    when(CurSector > SectorCount) {
+                        LastError = ErrorCode.BadSector; return;
+                    }
+                    ignore DiskImage.Seek(CurSector * BytesPerSector, SeekOrigin.Begin);    
+                    ignore DiskImage.Read(VBuffer, 0, BytesPerSector);
+                    fori(0 <= i < BytesPerSector)
+                        VM.MemI[data+i] = VBuffer[i];
+                    CurSector += 1;
+                | 92 =>
+                    when(CurSector > SectorCount) {
+                        LastError = ErrorCode.BadSector; return;
+                    }
+                    fori(0 <= i < BytesPerSector)
+                        VBuffer[i] = VM.MemI[data+i];
+                    ignore DiskImage.Seek(CurSector * BytesPerSector, SeekOrigin.Begin);
+                    DiskImage.Write(VBuffer, 0, BytesPerSector);
+                    CurSector += 1;
+                | _ => ();
+            }
+        }
+        
+        public override Request(port : int) : int? {
+            | 90 => CurSector;
+            | 91 => LastError :> int;
+            | 92 => SectorCount;
+            | _ => null;
+        }
+        
+        public this(_ : RenderWindow, VM : KGVM, fname : string) {
+            this.VM = VM; mutable ErrMsg = "Bad Filename";
+            try {
+                when(fname.Length < 1) throw Exception();
+                this.VBuffer = array(BytesPerSector);
+                ErrMsg = $"Failed to open \"$fname\"";
+                this.DiskImage = FileStream(fname, FileMode.Open);
+                this.SectorCount = (FileInfo(fname).Length / BytesPerSector) :> int;
+            } catch {
+                | _ => throw Exception(String.Format("HardDrive error: {0}", ErrMsg));
+            }
+        }
+    }
+}

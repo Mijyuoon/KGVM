@@ -1,0 +1,59 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{EDCC3B85-0BAD-11DB-BC1A-00112FDE8B61}") = "KGVM", "KGVM\KGVM.nproj", "{CA7BEF75-35A7-4A8B-B26A-727FF2EB1353}"
+	ProjectSection(ProjectDependencies) = postProject
+		{D716A441-EF80-42B8-8F25-AB3C01A8F620} = {D716A441-EF80-42B8-8F25-AB3C01A8F620}
+	EndProjectSection
+EndProject
+Project("{EDCC3B85-0BAD-11DB-BC1A-00112FDE8B61}") = "KGVM_Test", "KGVM_Test\KGVM_Test.nproj", "{E6DCB9E5-79BF-4DD7-BDD5-44BB0D05566B}"
+EndProject
+Project("{EDCC3B85-0BAD-11DB-BC1A-00112FDE8B61}") = "MijMacros", "..\NmApp1\MijMacros\MijMacros.nproj", "{D716A441-EF80-42B8-8F25-AB3C01A8F620}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KGAsm", "KGAsm\KGAsm.csproj", "{30337A6F-84FE-40D5-8A62-36163DEC2696}"
+EndProject
+Project("{EDCC3B85-0BAD-11DB-BC1A-00112FDE8B61}") = "KGAsm_Test", "KGAsm_Test\KGAsm_Test.nproj", "{5D85B06D-DED4-459D-8006-58F885826EE5}"
+EndProject
+Project("{EDCC3B85-0BAD-11DB-BC1A-00112FDE8B61}") = "KGDAsm", "KGDAsm\KGDAsm.nproj", "{EB94BBA4-77AA-4A32-985B-C42CA54A4E13}"
+EndProject
+Project("{EDCC3B85-0BAD-11DB-BC1A-00112FDE8B61}") = "KGDasm_Test", "KGDasm_Test\KGDasm_Test.nproj", "{E6C9D4D6-08B4-4D74-8C04-B40AED4D1F8F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CA7BEF75-35A7-4A8B-B26A-727FF2EB1353}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA7BEF75-35A7-4A8B-B26A-727FF2EB1353}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA7BEF75-35A7-4A8B-B26A-727FF2EB1353}.Release|Any CPU.ActiveCfg = Release|x86
+		{CA7BEF75-35A7-4A8B-B26A-727FF2EB1353}.Release|Any CPU.Build.0 = Release|x86
+		{E6DCB9E5-79BF-4DD7-BDD5-44BB0D05566B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E6DCB9E5-79BF-4DD7-BDD5-44BB0D05566B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E6DCB9E5-79BF-4DD7-BDD5-44BB0D05566B}.Release|Any CPU.ActiveCfg = Release|x86
+		{E6DCB9E5-79BF-4DD7-BDD5-44BB0D05566B}.Release|Any CPU.Build.0 = Release|x86
+		{D716A441-EF80-42B8-8F25-AB3C01A8F620}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D716A441-EF80-42B8-8F25-AB3C01A8F620}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D716A441-EF80-42B8-8F25-AB3C01A8F620}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D716A441-EF80-42B8-8F25-AB3C01A8F620}.Release|Any CPU.Build.0 = Release|Any CPU
+		{30337A6F-84FE-40D5-8A62-36163DEC2696}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{30337A6F-84FE-40D5-8A62-36163DEC2696}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{30337A6F-84FE-40D5-8A62-36163DEC2696}.Release|Any CPU.ActiveCfg = Release|x86
+		{30337A6F-84FE-40D5-8A62-36163DEC2696}.Release|Any CPU.Build.0 = Release|x86
+		{5D85B06D-DED4-459D-8006-58F885826EE5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5D85B06D-DED4-459D-8006-58F885826EE5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5D85B06D-DED4-459D-8006-58F885826EE5}.Release|Any CPU.ActiveCfg = Release|x86
+		{5D85B06D-DED4-459D-8006-58F885826EE5}.Release|Any CPU.Build.0 = Release|x86
+		{EB94BBA4-77AA-4A32-985B-C42CA54A4E13}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB94BBA4-77AA-4A32-985B-C42CA54A4E13}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB94BBA4-77AA-4A32-985B-C42CA54A4E13}.Release|Any CPU.ActiveCfg = Release|x86
+		{EB94BBA4-77AA-4A32-985B-C42CA54A4E13}.Release|Any CPU.Build.0 = Release|x86
+		{E6C9D4D6-08B4-4D74-8C04-B40AED4D1F8F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E6C9D4D6-08B4-4D74-8C04-B40AED4D1F8F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E6C9D4D6-08B4-4D74-8C04-B40AED4D1F8F}.Release|Any CPU.ActiveCfg = Release|x86
+		{E6C9D4D6-08B4-4D74-8C04-B40AED4D1F8F}.Release|Any CPU.Build.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,55 @@
+﻿using Nemerle;
+using Nemerle.Collections;
+using Nemerle.Text;
+using Nemerle.Utility;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace MijStuff.VM2 {
+    interface VmException {
+        SYS : bool { get; }
+        INT : int { get; }
+    }
+    class VmDivizionByZero : Exception, VmException {
+        public SYS : bool { get { false; } }
+        public INT : int { get { 0x00; } }
+        public this() { base(); }
+    }
+    class VmStackOverflow : Exception, VmException {
+        mutable IsSys : bool;
+        public SYS : bool { get { IsSys } };
+        public INT : int { get { 0x01; } }
+        public this(sys : bool) { IsSys = sys; base(); }
+    }
+    class VmStackUnderflow : Exception, VmException {
+        mutable IsSys : bool;
+        public SYS : bool { get { IsSys } };
+        public INT : int { get { 0x02; } }
+        public this(sys : bool) { IsSys = sys; base(); }
+    }
+    class VmMemoryError : Exception, VmException {
+        public SYS : bool { get { false; } }
+        public INT : int { get { 0x03; } }
+        public Ptr : int { get; internal set; }
+        public this(p : int) { base(); this.Ptr = p; }
+    }
+    class VmBadOperand : Exception, VmException {
+        public SYS : bool { get { false; } }
+        public INT : int { get { 0x04; } }
+        public Op : int { get; internal set; }
+        public this(op : int) { base(); this.Op = op; }
+    }
+    class VmBadOpcode : Exception, VmException {
+        public SYS : bool { get { false; } }
+        public INT : int { get { 0x05; } }
+        public Op : int { get; internal set; }
+        public this(op : int) { base(); this.Op = op; }
+    }
+    class VmGeneralError : Exception, VmException {
+        public SYS : bool { get { true; } }
+        public INT : int { get { 0x0F; } }
+        public this() { base(); }
+    }
+}

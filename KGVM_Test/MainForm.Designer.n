@@ -1,0 +1,55 @@
+﻿#pragma warning disable 10001
+
+namespace MijStuff.VM2.Test
+{
+  public partial class MainForm
+  {
+    /// <summary>
+    /// Required designer variable.
+    /// </summary>
+    private  mutable  components : System.ComponentModel.IContainer = null;
+
+    /// <summary>
+    /// Clean up any resources being used.
+    /// </summary>
+    /// <param name="disposing">
+    /// true if managed resources should be disposed; otherwise, false.
+    /// </param>
+    protected override Dispose(disposing : bool) :  void
+    {
+      when (disposing && components != null)
+        components.Dispose();
+
+      base.Dispose(disposing);
+    }
+
+    /// <summary>
+    /// Required method for Designer support - do not modify
+    /// the contents of this method with the code editor.
+    /// </summary>
+    private InitializeComponent() :  void
+    {
+        this.components = System.ComponentModel.Container();
+        this.VmTick = System.Windows.Forms.Timer(this.components);
+        this.SuspendLayout();
+        // 
+        // VmTick
+        // 
+        this.VmTick.Interval = 1;
+        this.VmTick.Tick += System.EventHandler(this.VmTick_Tick);
+        // 
+        // MainForm
+        // 
+        this.AutoScaleDimensions = System.Drawing.SizeF(6f,  13f);
+        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+        this.ClientSize = System.Drawing.Size(800,  600);
+        this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+        this.MaximizeBox = false;
+        this.Name = "MainForm";
+        this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+        this.Text = "KGVM Main Window";
+        this.KeyDown += System.Windows.Forms.KeyEventHandler(this.MainForm_KeyDown);
+        this.ResumeLayout(false);
+    }
+  }
+}

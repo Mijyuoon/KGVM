@@ -1,0 +1,130 @@
+﻿using Nemerle.Collections;
+using Nemerle.Text;
+using Nemerle.Utility;
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.IO;
+using System.Text;
+using System.Diagnostics;
+using System.Windows.Forms;
+using System.Threading;
+
+using SFML.Graphics;
+using SFML.Window;
+using MijMacro;
+using System.Yaml;
+
+
+namespace MijStuff.VM2.Test {
+    public partial class MainForm : Form {
+        mutable VM : KGVM;
+        mutable Wnd : RenderWindow;
+        mutable Cfg : YamlMapping;
+        
+        public StepsPerSec : int;
+        public MemSize : int;
+        public StkSize : int;
+        public VStkSize : int;
+        public Locals : int;
+        public DevList : YamlSequence;
+        public mutable FileName : string;
+        public HddFileName : string;
+        
+        #region YAML data retrieving shit
+        public ConfigGetInt(key : string) : int {
+            if(Cfg.ContainsKey(key)) {
+                try {
+                    (Cfg[key] :> YamlScalar).NativeObject :> int;
+                } catch {
+                    | _ => throw Exception($"Value of \"$key\" is not an integer");
+                }
+            } else 0;
+        }
+        
+        public ConfigGetList(key : string) : YamlSequence {
+            if(Cfg.ContainsKey(key)) {
+                def lst = Cfg[key];
+                unless(lst is YamlSequence)
+                    throw Exception($"Value of \"$key\" is not a list");
+                (lst :> YamlSequence);
+            } else null;
+        }
+        
+        public ConfigGetStr(key : string) : string {
+            if(Cfg.ContainsKey(key)) {
+                def str = Cfg[key];
+                unless(str is YamlScalar)
+                    throw Exception($"Value of \"$key\" is not a string");
+                (Cfg[key] :> YamlScalar).Value;
+            } else "";
+        }
+        #endregion
+        
+        public this(filename : string) {
+            InitializeComponent();
+            try {
+                def yml = YamlNode.FromYamlFile("config.yml");
+                this.Cfg = yml[0] :> YamlMapping;
+                this.MemSize = ConfigGetInt("memorySize");
+                this.StkSize = ConfigGetInt("stackSize");
+                this.StepsPerSec = ConfigGetInt("systemPerf")*80;
+                this.DevList = ConfigGetList("enableDevices");
+                this.FileName = ConfigGetStr("progFileName");
+                this.HddFileName = ConfigGetStr("hddFileName");
+                this.VStkSize = ConfigGetInt("stackSizeV");
+                this.Locals = ConfigGetInt("initLocals");
+            } catch {
+                | e => throw Exception($"YAML error: $(e.Message)");
+            }
+            
+            this.Wnd = RenderWindow(this.Handle);
+            this.VM = KGVM(MemSize, StkSize, VStkSize, Locals);
+            
+            when(DevList != null) {
+                this.VM.DEV.Add(Motherboard(null, this.VM));
+                when(DevList.Contains("GraphicDisplay"))
+                    this.VM.DEV.Add(GraphicDisplay(this.Wnd, this.VM));
+                when(DevList.Contains("ConsoleDisplay"))
+                    this.VM.DEV.Add(ConsoleDisplay(this.Wnd, this.VM));
+                when(DevList.Contains("HardDrive"))
+                    this.VM.DEV.Add(HardDrive(null, this.VM, this.HddFileName));
+                when(DevList.Contains("Keyboard")) {
+                    def DevKbd = Keyboard(null, this.VM);
+                    this.KeyPress += fun(_,e) { DevKbd.QueueKey(e.KeyChar); }
+                    this.VM.DEV.Add(DevKbd);
+                }
+            }
+            
+            when(filename.Length > 0)
+                this.FileName = filename;
+            this.FileName = if(FileName.Length > 0) 
+                FileName else "program.kgvm";
+            def program = File.ReadAllBytes(FileName);
+            VMUtils.LoadInstructions(this.VM);
+            this.VM.LdMem(program,512,512);
+            this.VM.Init(512);
+            
+            this.VmTick.Enabled = true;
+        }
+        
+        public GetVm() : KGVM { this.VM; }
+        
+        private mutable VmTick : Windows.Forms.Timer;
+        private VmTick_Tick (_ : object,  _ : EventArgs) : void {
+            fori(0 <= i < StepsPerSec) VM.Step(false);
+        }
+    
+        private MainForm_KeyDown (_ : object,  e : Windows.Forms.KeyEventArgs) : void {
+            when(e.KeyCode == Keys.D && e.Control) {
+                Program.MON.Show();
+                Program.MON.EnableShit();
+            }
+            when(e.KeyCode == Keys.S && e.Control)
+                VM.Flg[Flags.Run] = !VM.Flg[Flags.Run];
+        }
+    }
+}

@@ -1,0 +1,77 @@
+﻿using Nemerle.Collections;
+using Nemerle.Text;
+using Nemerle.Utility;
+using Nemerle.Imperative;
+
+using System;
+using System.Collections.Generic;
+using System.Console;
+using System.Linq;
+using System.IO;
+
+using MijMacro;
+using MijStuff.VM2.Asm;
+
+module Program {
+    mutable EmitLabels : bool;
+    mutable LdLabels : string = "";
+    mutable BOffset : int = 0;
+    
+    private GetParams(args : array[string]) : int {
+        when(args.Length < 1) return 0;
+        mutable count = 0;
+        fori(0 <= i < args.Length) { match(args[i]) {
+            | "-emit-lb" => EmitLabels = true; count++;
+            | "-load-lb" =>
+                when(args.Length <= i+1)
+                    throw Exception("no parameter to -load-lb specified");
+                LdLabels = args[i+1]; 
+                count += 2; i++;
+            | "-base" =>
+                when(args.Length <= i+1)
+                    throw Exception("no parameter to -base specified");
+                unless(Int32.TryParse(args[i+1], out BOffset))
+                    throw Exception("parameter to -base must be a number");
+                count += 2; i++;
+            | _ => return count;
+        }} count;
+    }
+    
+    private Main(args : array[string]) : void {
+        try {
+            mutable LastArg = GetParams(args);
+            when(args.Length < LastArg+1)
+                    throw Exception("no input file specified");
+                    
+            unless(File.Exists(args[LastArg]))
+                throw Exception($"file $(args[LastArg]) not found");
+                
+            def Assembler = KGAsm(args[LastArg]);
+            Assembler.OffsetBase = BOffset;
+            
+            when(LdLabels.Length > 0) {
+                unless(File.Exists(LdLabels))
+                    throw Exception($"label definition file \"$LdLabels\" not found");
+                    
+                def lines = File.ReadAllLines(LdLabels);
+                Assembler.LoadLabels(lines);
+            }
+            
+            def program = Assembler.Assemble();
+            when(Assembler.ErrNum > 0)
+                throw Exception($"$(Assembler.ErrNum) parse errors detected");
+                
+            def filename = if(args.Length > LastArg+1) 
+                args[LastArg+1] else "program.kgvm";
+                
+            File.WriteAllBytes(filename, program);
+            
+            when(EmitLabels) {
+                def lbfile = filename.Substring(0, filename.LastIndexOf('.')) + ".kal";
+                File.WriteAllLines(lbfile, Assembler.GetLabels());
+            }
+        } catch {
+            | e => WriteLine("Error: {0}", e.Message); return;
+        }
+    }
+}

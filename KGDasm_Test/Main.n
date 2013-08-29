@@ -1,0 +1,49 @@
+﻿using Nemerle.Collections;
+using Nemerle.Text;
+using Nemerle.Utility;
+using Nemerle.Imperative;
+
+using System;
+using System.Collections.Generic;
+using System.Console;
+using System.Linq;
+using System.IO;
+
+using MijMacro;
+using MijStuff.VM2.DAsm;
+
+module Program {
+    mutable EmitOffsets : bool;
+    mutable LockX200 : bool = true;
+    
+    private GetParams(args : array[string]) : int {
+        when(args.Length < 1) return 0;
+        mutable count = 0;
+        fori(0 <= i < args.Length) { match(args[i]) {
+            | "-offsets" => EmitOffsets = true; count++;
+            | "-nobase" => LockX200 = false; count++;
+            | _ => return count;
+        }} count;
+    }
+    
+    private Main(args : array[string]) : void {
+        try {
+            mutable LastArg = GetParams(args);
+            when(args.Length < LastArg+1)
+                    throw Exception("no input file specified");
+                    
+            unless(File.Exists(args[LastArg]))
+                throw Exception($"file $(args[LastArg]) not found");
+                
+            def DisAsm = KGDAsm(args[LastArg], LockX200, EmitOffsets);
+            DisAsm.DisAssemble(false);
+            
+            def filename = if(args.Length > LastArg+1) 
+                args[LastArg+1] else "program.ka2";
+                
+            File.WriteAllLines(filename, DisAsm.AllLines.ToArray());
+        } catch {
+            | e => WriteLine("Error: {0}", e.Message); return;
+        }
+    }
+}

@@ -1,0 +1,187 @@
+﻿using Nemerle.Collections;
+using Nemerle.Text;
+using Nemerle.Utility;
+using Nemerle.Imperative;
+
+using System;
+using System.Collections.Generic;
+using System.Console;
+using System.Linq;
+using System.IO;
+using System.Text;
+
+using MijMacro;
+using MijStuff.VM2;
+
+namespace MijStuff.VM2.DAsm {
+    internal class TOperand {
+        public mutable Pointer : bool;
+        public mutable PayLoad : int;
+        public mutable PLSize : int;
+        public mutable VType : int;
+        
+        public Generate() : string {
+            def ff = if(PayLoad <= Int16.MaxValue && PayLoad >= Int16.MinValue && PLSize == 4) "$" else "";
+            match(VType) {
+                | 0 when (Pointer) => $"*$ff$PayLoad(b)";
+                | 1 when (Pointer) => $"*$ff$PayLoad(h)";
+                | 2 when (Pointer) => $"*$ff$PayLoad";
+                | 4 when (Pointer) => "*s(b)";
+                | 5 when (Pointer) => "*s(h)";
+                | 6 when (Pointer) => "*s";
+                | 0 => $"$ff$PayLoad(b)";
+                | 1 => $"$ff$PayLoad(h)";
+                | 2 => $"$ff$PayLoad";
+                | 4 => "s(b)";
+                | 5 => "s(h)";
+                | 6 => "s";
+                | _ => throw Exception();
+            }
+        }
+        
+        public Change(Pointer : bool, VType : int, PayLoad : int, Size : int) : void {
+            this.Pointer = Pointer; this.VType = VType; 
+            this.PayLoad = PayLoad; this.PLSize = Size;
+        }
+    }
+    
+    public class KGDAsm {
+        private Source : array[byte];
+        private Line : StringBuilder;
+        private Lines : List[string];
+        private Assoc : Dictionary[int, int];
+        private LockX200 : bool;
+        private GenOffset : bool;
+        
+        private mutable LineNum : int;
+        private mutable CurAddr : int;
+        private mutable LastAddr : int;
+        private mutable MaxAddr : int;
+        private mutable Opcode : int;
+        private mutable OperNum : int;
+        private Operands : array[DAsm.TOperand];
+        
+        public this(fname : string, lock200 : bool, offset : bool) {
+            this.Source = File.ReadAllBytes(fname);
+            this.Line = StringBuilder();
+            this.Lines = List();
+            this.Assoc = Dictionary();
+            this.LockX200 = lock200;
+            this.GenOffset = offset;
+            this.Operands = array(16);
+            fori(0 <= i < 16)
+                Operands[i] = TOperand();
+        }
+        
+        public AllLines : List[string] {
+            get { Lines; }
+        }
+        
+        public GetLine(idx : int) : string { 
+            when(idx < 0 || idx >= Lines.Count)
+                return "OUT OF RANGE";
+            Lines[idx];
+        }
+        
+        public GetLineAssoc(mutable addr : int) : int {
+            while(!Assoc.ContainsKey(addr)) {
+                when(addr < 512 || addr > MaxAddr) 
+                    return -1; 
+                addr--;
+            } Assoc[addr];
+        }
+        
+        public GetLineByAddr(mutable addr : int) : string {
+            while(!Assoc.ContainsKey(addr)) {
+                when(addr < 512 || addr > MaxAddr) 
+                    return "OUT OF RANGE";
+                addr--;
+            } GetLine(Assoc[addr]);
+        }
+        
+        private DataI[idx : int] : int {
+            get { 
+                if(idx >= 0 && idx < Source.Length) 
+                    Source[idx] else throw Exception(); 
+            }
+        }
+        
+        private DataV[idx : int, amt : int] : int {
+            get {
+                try match(amt) {
+                    | 0 => 0;
+                    | 1 => Source[idx];
+                    | 2 => BitConverter.ToInt16(Source,idx);
+                    | 4 => BitConverter.ToInt32(Source,idx);
+                    | _ => throw Exception();
+                } catch {
+                    | _ => throw Exception();
+                }
+            }
+        }
+        
+        private DecOpcode(opc : int) : string {
+            when(opc < 0 || opc >= (Instr.COUNT :> int))
+                throw Exception();
+            (opc :> Instr).ToString().Replace('_','.').ToLower();
+        }
+        
+        private HandleUnknown(from : int, to : int) : void {
+            when(to < from) return;
+            ignore Line.Clear();
+            when(GenOffset)
+                ignore Line.AppendFormat("|of_{0}| ", from);
+            ignore Line.AppendFormat("!db [{0:D}", DataI[from]);
+            fori(from+1 <= i < to)
+                ignore Line.AppendFormat(",{0:D}", DataI[i]);
+            Lines.Add(Line.Append("]").ToString());
+        }
+        
+        private Decode(mutable addr : ref int) : void {
+            LastAddr = addr;
+            Opcode = DataI[addr]; addr++;
+            def byte2 = DataI[addr]; addr++;
+            when(Opcode < 0 || Opcode >= (Instr.COUNT :> int) || (byte2 & 15) > 0)
+                throw Exception();
+            OperNum = byte2 >> 4;
+            fori(0 <= i < OperNum) {
+                def bin = DataI[addr]; addr++;
+                def pl = (bin >> 3) & 7;
+                Operands[i].Change(
+                    (bin & 64) > 0,
+                    bin & 7,
+                    DataV[addr, pl],
+                    pl
+                ); addr += pl;
+            }
+        }
+        
+        public DisAssemble(noheader : bool) : void {
+            unless(noheader)
+                Lines.Add(String.Format("@program{0}", if(LockX200) " !org [0x200]" else ""));
+            LineNum++; when(LockX200) CurAddr = 512;
+            while(CurAddr < Source.Length) {
+                try {
+                    ignore Line.Clear();
+                    Decode(ref CurAddr);
+                    def ops = List();
+                    fori(0 <= i < OperNum)
+                        ops.Add(Operands[i].Generate());
+                    when(GenOffset)
+                        ignore Line.AppendFormat("|of_{0}| ", LastAddr);
+                    ignore Line.Append(DecOpcode(Opcode));
+                    when(OperNum > 0) ignore {
+                        Line.Append(" [");
+                        Line.AppendSeq(ops," ");
+                        Line.Append("]");
+                    }
+                    Lines.Add(Line.ToString());
+                } catch {
+                    | _ =>
+                        //WriteLine("Warning! Cannot decode 0x{0:X} - 0x{1:X}", LastAddr, CurAddr);
+                        HandleUnknown(LastAddr, CurAddr);
+                } Assoc[LastAddr] = LineNum; LineNum++;
+            } MaxAddr = CurAddr;
+        }
+    }
+}

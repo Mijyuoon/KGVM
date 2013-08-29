@@ -1,0 +1,369 @@
+﻿#pragma warning disable 10001
+
+namespace MijStuff.VM2.Test
+{
+  public partial class MonitorForm
+  {
+    /// <summary>
+    /// Required designer variable.
+    /// </summary>
+    private mutable components : System.ComponentModel.IContainer = null;
+
+    /// <summary>
+    /// Clean up any resources being used.
+    /// </summary>
+    /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
+    protected override Dispose(disposing : bool) : void
+    {
+      when (disposing && components != null)
+        components.Dispose();
+
+      base.Dispose(disposing);
+    }
+
+    #region
+
+    /// <summary>
+    /// Required method for Designer support - do not modify
+    /// the contents of this method with the code editor.
+    /// </summary>
+    private InitializeComponent() : void
+    {
+        this.components = System.ComponentModel.Container();
+        this.LbVm = System.Windows.Forms.Label();
+        this.TmRefresh = System.Windows.Forms.Timer(this.components);
+        this.LbPc = System.Windows.Forms.Label();
+        this.LbStk = System.Windows.Forms.Label();
+        this.GbStk = System.Windows.Forms.GroupBox();
+        this.BtPause = System.Windows.Forms.Button();
+        this.BtStep = System.Windows.Forms.Button();
+        this.LbScope = System.Windows.Forms.Label();
+        this.GbLoc = System.Windows.Forms.GroupBox();
+        this.LbLoc = System.Windows.Forms.Label();
+        this.CbLoc2 = System.Windows.Forms.ComboBox();
+        this.CbLoc1 = System.Windows.Forms.ComboBox();
+        this.Lb1 = System.Windows.Forms.Label();
+        this.Lb2 = System.Windows.Forms.Label();
+        this.CbUpVal = System.Windows.Forms.NumericUpDown();
+        this.Lb3 = System.Windows.Forms.Label();
+        this.LbRet = System.Windows.Forms.Label();
+        this.Lb4 = System.Windows.Forms.Label();
+        this.CbTimer = System.Windows.Forms.ComboBox();
+        this.CbHex = System.Windows.Forms.CheckBox();
+        this.LbInstr = System.Windows.Forms.Label();
+        this.LbFlag = System.Windows.Forms.Label();
+        this.GbAsm = System.Windows.Forms.GroupBox();
+        this.LbAsm = System.Windows.Forms.Label();
+        this.LbAsmNx = System.Windows.Forms.Label();
+        this.LbAsmPr = System.Windows.Forms.Label();
+        this.GbStk.SuspendLayout();
+        this.GbLoc.SuspendLayout();
+        (this.CbUpVal :> System.ComponentModel.ISupportInitialize).BeginInit();
+        this.GbAsm.SuspendLayout();
+        this.SuspendLayout();
+        // 
+        // LbVm
+        // 
+        this.LbVm.AutoSize = true;
+        this.LbVm.Location = System.Drawing.Point(98,  9);
+        this.LbVm.Margin = System.Windows.Forms.Padding(4,  0,  4,  0);
+        this.LbVm.Name = "LbVm";
+        this.LbVm.Size = System.Drawing.Size(99,  19);
+        this.LbVm.TabIndex = 0;
+        this.LbVm.Text = "VM Status:";
+        // 
+        // TmRefresh
+        // 
+        this.TmRefresh.Interval = 10;
+        this.TmRefresh.Tick += System.EventHandler(this.TmRefresh_Tick);
+        // 
+        // LbPc
+        // 
+        this.LbPc.AutoSize = true;
+        this.LbPc.Location = System.Drawing.Point(44,  32);
+        this.LbPc.Margin = System.Windows.Forms.Padding(4,  4,  4,  0);
+        this.LbPc.Name = "LbPc";
+        this.LbPc.Size = System.Drawing.Size(153,  19);
+        this.LbPc.TabIndex = 1;
+        this.LbPc.Text = "Program Counter:";
+        // 
+        // LbStk
+        // 
+        this.LbStk.Location = System.Drawing.Point(6,  22);
+        this.LbStk.Name = "LbStk";
+        this.LbStk.Size = System.Drawing.Size(650,  173);
+        this.LbStk.TabIndex = 2;
+        // 
+        // GbStk
+        // 
+        this.GbStk.Controls.Add(this.LbStk);
+        this.GbStk.Location = System.Drawing.Point(12,  123);
+        this.GbStk.Name = "GbStk";
+        this.GbStk.Size = System.Drawing.Size(662,  199);
+        this.GbStk.TabIndex = 3;
+        this.GbStk.TabStop = false;
+        this.GbStk.Text = "Stack Contents:";
+        // 
+        // BtPause
+        // 
+        this.BtPause.Location = System.Drawing.Point(456,  4);
+        this.BtPause.Name = "BtPause";
+        this.BtPause.Size = System.Drawing.Size(141,  28);
+        this.BtPause.TabIndex = 4;
+        this.BtPause.Text = "Run/Halt VM";
+        this.BtPause.UseVisualStyleBackColor = true;
+        this.BtPause.Click += System.EventHandler(this.BtPause_Click);
+        // 
+        // BtStep
+        // 
+        this.BtStep.Location = System.Drawing.Point(603,  4);
+        this.BtStep.Name = "BtStep";
+        this.BtStep.Size = System.Drawing.Size(75,  28);
+        this.BtStep.TabIndex = 5;
+        this.BtStep.Text = "Step";
+        this.BtStep.UseVisualStyleBackColor = true;
+        this.BtStep.Click += System.EventHandler(this.BtStep_Click);
+        // 
+        // LbScope
+        // 
+        this.LbScope.AutoSize = true;
+        this.LbScope.Location = System.Drawing.Point(8,  101);
+        this.LbScope.Margin = System.Windows.Forms.Padding(3,  4,  3,  0);
+        this.LbScope.Name = "LbScope";
+        this.LbScope.Size = System.Drawing.Size(189,  19);
+        this.LbScope.TabIndex = 6;
+        this.LbScope.Text = "Current Scope Depth:";
+        // 
+        // GbLoc
+        // 
+        this.GbLoc.Controls.Add(this.LbLoc);
+        this.GbLoc.Location = System.Drawing.Point(12,  328);
+        this.GbLoc.Name = "GbLoc";
+        this.GbLoc.Size = System.Drawing.Size(662,  125);
+        this.GbLoc.TabIndex = 7;
+        this.GbLoc.TabStop = false;
+        this.GbLoc.Text = "Current Locals (0 to 0):";
+        // 
+        // LbLoc
+        // 
+        this.LbLoc.Location = System.Drawing.Point(6,  22);
+        this.LbLoc.Name = "LbLoc";
+        this.LbLoc.Size = System.Drawing.Size(650,  100);
+        this.LbLoc.TabIndex = 8;
+        // 
+        // CbLoc2
+        // 
+        this.CbLoc2.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+        this.CbLoc2.Font = System.Drawing.Font("Consolas",  11.25f,  System.Drawing.FontStyle.Regular,  System.Drawing.GraphicsUnit.Point,  (204 :> byte));
+        this.CbLoc2.FormattingEnabled = true;
+        this.CbLoc2.Location = System.Drawing.Point(612,  459);
+        this.CbLoc2.Name = "CbLoc2";
+        this.CbLoc2.Size = System.Drawing.Size(62,  26);
+        this.CbLoc2.TabIndex = 8;
+        this.CbLoc2.SelectedIndexChanged += System.EventHandler(this.CbLoc2_SelectedIndexChanged);
+        // 
+        // CbLoc1
+        // 
+        this.CbLoc1.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+        this.CbLoc1.Font = System.Drawing.Font("Consolas",  11.25f,  System.Drawing.FontStyle.Regular,  System.Drawing.GraphicsUnit.Point,  (204 :> byte));
+        this.CbLoc1.FormattingEnabled = true;
+        this.CbLoc1.Location = System.Drawing.Point(511,  459);
+        this.CbLoc1.Name = "CbLoc1";
+        this.CbLoc1.Size = System.Drawing.Size(62,  26);
+        this.CbLoc1.TabIndex = 9;
+        this.CbLoc1.SelectedIndexChanged += System.EventHandler(this.CbLoc1_SelectedIndexChanged);
+        // 
+        // Lb1
+        // 
+        this.Lb1.AutoSize = true;
+        this.Lb1.Location = System.Drawing.Point(415,  461);
+        this.Lb1.Name = "Lb1";
+        this.Lb1.Size = System.Drawing.Size(90,  19);
+        this.Lb1.TabIndex = 10;
+        this.Lb1.Text = "Show from";
+        // 
+        // Lb2
+        // 
+        this.Lb2.AutoSize = true;
+        this.Lb2.Location = System.Drawing.Point(579,  461);
+        this.Lb2.Name = "Lb2";
+        this.Lb2.Size = System.Drawing.Size(27,  19);
+        this.Lb2.TabIndex = 11;
+        this.Lb2.Text = "to";
+        // 
+        // CbUpVal
+        // 
+        this.CbUpVal.Location = System.Drawing.Point(140,  459);
+        this.CbUpVal.Maximum = decimal(array[
+                    0, 
+                    0, 
+                    0, 
+                    0]);
+        this.CbUpVal.Name = "CbUpVal";
+        this.CbUpVal.ReadOnly = true;
+        this.CbUpVal.Size = System.Drawing.Size(64,  26);
+        this.CbUpVal.TabIndex = 12;
+        this.CbUpVal.ValueChanged += System.EventHandler(this.CbUpVal_ValueChanged);
+        // 
+        // Lb3
+        // 
+        this.Lb3.AutoSize = true;
+        this.Lb3.Location = System.Drawing.Point(8,  461);
+        this.Lb3.Name = "Lb3";
+        this.Lb3.Size = System.Drawing.Size(126,  19);
+        this.Lb3.TabIndex = 13;
+        this.Lb3.Text = "Show upvalues";
+        // 
+        // LbRet
+        // 
+        this.LbRet.AutoSize = true;
+        this.LbRet.Location = System.Drawing.Point(8,  55);
+        this.LbRet.Margin = System.Windows.Forms.Padding(3,  4,  3,  0);
+        this.LbRet.Name = "LbRet";
+        this.LbRet.Size = System.Drawing.Size(189,  19);
+        this.LbRet.TabIndex = 6;
+        this.LbRet.Text = "Last Return Address:";
+        // 
+        // Lb4
+        // 
+        this.Lb4.AutoSize = true;
+        this.Lb4.Font = System.Drawing.Font("Consolas",  9.75f,  System.Drawing.FontStyle.Regular,  System.Drawing.GraphicsUnit.Point,  (204 :> byte));
+        this.Lb4.Location = System.Drawing.Point(450,  516);
+        this.Lb4.Name = "Lb4";
+        this.Lb4.Size = System.Drawing.Size(147,  15);
+        this.Lb4.TabIndex = 15;
+        this.Lb4.Text = "Monitor refresh rate";
+        // 
+        // CbTimer
+        // 
+        this.CbTimer.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+        this.CbTimer.Font = System.Drawing.Font("Consolas",  9.75f,  System.Drawing.FontStyle.Regular,  System.Drawing.GraphicsUnit.Point,  (204 :> byte));
+        this.CbTimer.FormattingEnabled = true;
+        this.CbTimer.Items.AddRange(array[
+                    "1 ms", 
+                    "2 ms", 
+                    "5 ms", 
+                    "10 ms", 
+                    "20 ms", 
+                    "50 ms", 
+                    "100 ms", 
+                    "200 ms", 
+                    "500 ms"] :> array[object]);
+        this.CbTimer.Location = System.Drawing.Point(603,  513);
+        this.CbTimer.Name = "CbTimer";
+        this.CbTimer.Size = System.Drawing.Size(71,  23);
+        this.CbTimer.TabIndex = 14;
+        this.CbTimer.SelectedIndexChanged += System.EventHandler(this.CbTimer_SelectedIndexChanged);
+        // 
+        // CbHex
+        // 
+        this.CbHex.AutoSize = true;
+        this.CbHex.Font = System.Drawing.Font("Consolas",  9.75f,  System.Drawing.FontStyle.Regular,  System.Drawing.GraphicsUnit.Point,  (204 :> byte));
+        this.CbHex.Location = System.Drawing.Point(12,  517);
+        this.CbHex.Name = "CbHex";
+        this.CbHex.Size = System.Drawing.Size(131,  19);
+        this.CbHex.TabIndex = 16;
+        this.CbHex.Text = "Use hexadecimal";
+        this.CbHex.UseVisualStyleBackColor = true;
+        this.CbHex.CheckedChanged += System.EventHandler(this.CbHex_CheckedChanged);
+        // 
+        // LbInstr
+        // 
+        this.LbInstr.AutoSize = true;
+        this.LbInstr.Location = System.Drawing.Point(8,  78);
+        this.LbInstr.Margin = System.Windows.Forms.Padding(3,  4,  3,  0);
+        this.LbInstr.Name = "LbInstr";
+        this.LbInstr.Size = System.Drawing.Size(189,  19);
+        this.LbInstr.TabIndex = 6;
+        this.LbInstr.Text = "Current Instruction:";
+        // 
+        // LbFlag
+        // 
+        this.LbFlag.AutoSize = true;
+        this.LbFlag.Location = System.Drawing.Point(521,  63);
+        this.LbFlag.Name = "LbFlag";
+        this.LbFlag.Size = System.Drawing.Size(153,  57);
+        this.LbFlag.TabIndex = 17;
+        this.LbFlag.Text = "Flags:\r\n-----------BAEZR\r\n0000000000000000";
+        // 
+        // GbAsm
+        // 
+        this.GbAsm.Controls.Add(this.LbAsm);
+        this.GbAsm.Controls.Add(this.LbAsmNx);
+        this.GbAsm.Controls.Add(this.LbAsmPr);
+        this.GbAsm.Location = System.Drawing.Point(684,  4);
+        this.GbAsm.Name = "GbAsm";
+        this.GbAsm.Size = System.Drawing.Size(257,  532);
+        this.GbAsm.TabIndex = 18;
+        this.GbAsm.TabStop = false;
+        this.GbAsm.Text = "Disassembly";
+        // 
+        // LbAsm
+        // 
+        this.LbAsm.Font = System.Drawing.Font("Consolas",  9.75f,  System.Drawing.FontStyle.Regular,  System.Drawing.GraphicsUnit.Point,  (204 :> byte));
+        this.LbAsm.Location = System.Drawing.Point(6,  264);
+        this.LbAsm.Name = "LbAsm";
+        this.LbAsm.Size = System.Drawing.Size(245,  18);
+        this.LbAsm.TabIndex = 1;
+        this.LbAsm.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+        // 
+        // LbAsmNx
+        // 
+        this.LbAsmNx.Font = System.Drawing.Font("Consolas",  9.75f,  System.Drawing.FontStyle.Regular,  System.Drawing.GraphicsUnit.Point,  (204 :> byte));
+        this.LbAsmNx.Location = System.Drawing.Point(6,  282);
+        this.LbAsmNx.Name = "LbAsmNx";
+        this.LbAsmNx.Size = System.Drawing.Size(245,  242);
+        this.LbAsmNx.TabIndex = 0;
+        // 
+        // LbAsmPr
+        // 
+        this.LbAsmPr.Font = System.Drawing.Font("Consolas",  9.75f,  System.Drawing.FontStyle.Regular,  System.Drawing.GraphicsUnit.Point,  (204 :> byte));
+        this.LbAsmPr.Location = System.Drawing.Point(6,  22);
+        this.LbAsmPr.Name = "LbAsmPr";
+        this.LbAsmPr.Size = System.Drawing.Size(245,  242);
+        this.LbAsmPr.TabIndex = 0;
+        this.LbAsmPr.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+        // 
+        // MonitorForm
+        // 
+        this.AutoScaleDimensions = System.Drawing.SizeF(9f,  19f);
+        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+        this.ClientSize = System.Drawing.Size(953,  540);
+        this.Controls.Add(this.GbAsm);
+        this.Controls.Add(this.LbFlag);
+        this.Controls.Add(this.CbHex);
+        this.Controls.Add(this.Lb4);
+        this.Controls.Add(this.CbTimer);
+        this.Controls.Add(this.Lb3);
+        this.Controls.Add(this.CbUpVal);
+        this.Controls.Add(this.Lb2);
+        this.Controls.Add(this.Lb1);
+        this.Controls.Add(this.CbLoc1);
+        this.Controls.Add(this.CbLoc2);
+        this.Controls.Add(this.GbLoc);
+        this.Controls.Add(this.LbRet);
+        this.Controls.Add(this.LbInstr);
+        this.Controls.Add(this.LbScope);
+        this.Controls.Add(this.BtStep);
+        this.Controls.Add(this.BtPause);
+        this.Controls.Add(this.GbStk);
+        this.Controls.Add(this.LbPc);
+        this.Controls.Add(this.LbVm);
+        this.Font = System.Drawing.Font("Consolas",  12f,  System.Drawing.FontStyle.Regular,  System.Drawing.GraphicsUnit.Point,  (204 :> byte));
+        this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+        this.Margin = System.Windows.Forms.Padding(4);
+        this.Name = "MonitorForm";
+        this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+        this.Text = "System Monitor";
+        this.FormClosing += System.Windows.Forms.FormClosingEventHandler(this.MonitorForm_FormClosing);
+        this.GbStk.ResumeLayout(false);
+        this.GbLoc.ResumeLayout(false);
+        (this.CbUpVal :> System.ComponentModel.ISupportInitialize).EndInit();
+        this.GbAsm.ResumeLayout(false);
+        this.ResumeLayout(false);
+        this.PerformLayout();
+    }
+
+    #endregion
+  }
+}

@@ -1,0 +1,190 @@
+﻿using Nemerle.Collections;
+using Nemerle.Text;
+using Nemerle.Utility;
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Windows.Forms;
+
+using MijMacro;
+using MijStuff.VM2.DAsm;
+
+
+namespace MijStuff.VM2.Test {
+    public partial class MonitorForm : Form {
+        private Main : MainForm;
+        private VM : KGVM;
+        private Strb : StringBuilder;
+        private DAsm : KGDAsm;
+        mutable LocFrom : int;
+        mutable LocTo : int;
+        mutable UpVal : int;
+        mutable FormatStr : string;
+        mutable CurOpc : int;
+        
+        public this(frm : MainForm) {
+            InitializeComponent();
+            this.Main = frm;
+            this.VM = frm.GetVm();
+            this.Strb = StringBuilder();
+            this.DAsm = KGDAsm(frm.FileName, true, false);
+            this.DAsm.DisAssemble(true);
+            fori(0 <= i < Main.Locals) {
+                ignore CbLoc1.Items.Add(i);
+                ignore CbLoc2.Items.Add(i);
+            }
+            CbLoc1.SelectedIndex = 0;
+            CbLoc2.SelectedIndex = 0;
+            CbTimer.SelectedIndex = 3;
+            this.FormatStr = "{0,-11:D10} ";
+            this.CurOpc = -1;
+        }
+        
+        public EnableShit() : void {
+            TmRefresh.Enabled = true;
+        }
+        
+        private UpdateLocalsShit() : void {
+            when(CbLoc1.Text.Length > 0)
+                LocFrom = Convert.ToInt32(CbLoc1.Text);
+            when(CbLoc2.Text.Length > 0)
+                LocTo = Convert.ToInt32(CbLoc2.Text);
+            UpVal = CbUpVal.Value :> int;
+            if(CbUpVal.Value == 0) {
+                GbLoc.Text = String.Format("Current Locals ({0} to {1}):", LocFrom, LocTo);
+            } else {
+                GbLoc.Text = String.Format("UpValues Level {0} ({1} to {2}):", CbUpVal.Value, LocFrom, LocTo);
+            }
+        }
+        
+        private UpdateDisAssembly(pc : int) : void {
+            def curln = DAsm.GetLineAssoc(pc)-2;
+            ignore Strb.Clear();
+            fori(-14 <= i < 0) {
+                ignore Strb.Append("   ").AppendLine(DAsm.GetLine(curln+i));
+            } LbAsmPr.Text = Strb.ToString();
+            
+            ignore Strb.Clear();
+            fori(0 < i <= 14) {
+                ignore Strb.Append("   ").AppendLine(DAsm.GetLine(curln+i));
+            } LbAsmNx.Text = Strb.ToString();
+            
+            LbAsm.Text = $">> $(DAsm.GetLine(curln))";
+        }
+        
+        private GetLastReturn() : string {
+            if(VM.SSR.Pointer > -1) {
+                String.Format("Last Return Address: 0x{0:X8} / {0,-11:D10}", VM.SSR.Peek(0));
+            } else "Last Return Address: NONE";
+        }
+        
+        private GetInstruction(opcode : int) : string {
+            if(opcode >= (Instr.COUNT :> int) || opcode < 0) {
+                String.Format("Current Instruction: 0x{0:X2} / UNKNOWN", opcode);
+            } else {
+                def name = opcode :> Instr;
+                String.Format("Current Instruction: 0x{0:X2} / {1}", opcode, 
+                    name.ToString().Replace('_', '.').ToLower());
+            }
+        }
+    
+        private TmRefresh_Tick (_ : object,  _ : EventArgs) : void {
+            LbVm.Text = if(VM.Flg[Flags.Run]) 
+                "VM Status: Running" else "VM Status: Halted";
+            LbPc.Text = String.Format("Program Counter: 0x{0:X8} / {0,-11:D10}", VM.PC);
+            
+            ignore Strb.Clear();
+            fori(0 <= i <= VM.STK.Pointer) {
+                ignore Strb.AppendFormat(FormatStr, VM.STK.Data[i]);
+            } LbStk.Text = Strb.ToString();
+            
+            LbScope.Text = $"Current Scope Depth: $(VM.SCPV.Pointer)";
+            LbRet.Text = GetLastReturn();
+            CbUpVal.Maximum = VM.SCPV.Pointer;
+            
+            ignore Strb.Clear();
+            def locs = VM.SCPV.Peek(-UpVal);
+            fori(LocFrom <= i <= LocTo) {
+                ignore Strb.AppendFormat(FormatStr, locs.Loc[i]);
+            } LbLoc.Text = Strb.ToString();
+            
+            when(CurOpc != VM.PC) {
+                CurOpc = VM.PC;
+                LbInstr.Text = GetInstruction(VM.ITT.Opcode);
+                UpdateDisAssembly(CurOpc);
+            }
+            
+            ignore Strb.Clear().AppendLine("Flags:\n-----------BAEZR");
+            fori(16 > i >= 0)
+                ignore Strb.Append(if(VM.Flg[1 << i]) 1 else 0);
+            LbFlag.Text = Strb.ToString();
+        }
+    
+        private MonitorForm_FormClosing (_ : object,  e : FormClosingEventArgs) : void {
+            TmRefresh.Enabled = false;
+            e.Cancel = true;
+            this.Hide();
+        }
+    
+        private BtPause_Click (_ : object,  _ : EventArgs) : void {
+            VM.Flg[Flags.Run] = !VM.Flg[Flags.Run];
+        }
+        
+        private BtStep_Click (_ : object,  _ : EventArgs) : void {
+            VM.Flg[Flags.Run] = false; VM.Step(true);
+        }
+    
+        private CbLoc1_SelectedIndexChanged (_ : object,  _ : EventArgs) : void {
+            UpdateLocalsShit();
+        }
+    
+        private CbLoc2_SelectedIndexChanged (_ : object,  _ : EventArgs) : void {
+            UpdateLocalsShit();
+        }
+    
+        private CbUpVal_ValueChanged (_ : object,  _ : EventArgs) : void {
+            UpdateLocalsShit();
+        }
+        
+        private CbTimer_SelectedIndexChanged (_ : object,  _ : EventArgs) : void {
+            def ms = CbTimer.Text.Substring(0, CbTimer.Text.IndexOf(" "));
+            TmRefresh.Interval = Convert.ToInt32(ms);
+        }
+    
+        private CbHex_CheckedChanged (_ : object,  _ : EventArgs) : void {
+            FormatStr = if(CbHex.Checked) "0x{0:X8}  " else "{0,-11:D10} ";
+        }
+    
+        private mutable LbVm : Windows.Forms.Label;
+        private mutable TmRefresh : Windows.Forms.Timer;
+        private mutable LbPc : Windows.Forms.Label;
+        private mutable LbStk : System.Windows.Forms.Label;
+        private mutable BtPause : System.Windows.Forms.Button;
+        private mutable BtStep : System.Windows.Forms.Button;
+        private mutable GbStk : System.Windows.Forms.GroupBox;
+        private mutable LbScope : System.Windows.Forms.Label;
+        private mutable GbLoc : System.Windows.Forms.GroupBox;
+        private mutable Lb1 : System.Windows.Forms.Label;
+        private mutable Lb2 : System.Windows.Forms.Label;
+        private mutable LbLoc : System.Windows.Forms.Label;
+        private mutable CbLoc2 : System.Windows.Forms.ComboBox;
+        private mutable CbLoc1 : System.Windows.Forms.ComboBox;
+        private mutable CbUpVal : System.Windows.Forms.NumericUpDown;
+        private mutable Lb3 : System.Windows.Forms.Label;
+        private mutable LbRet : System.Windows.Forms.Label;
+        private mutable Lb4 : System.Windows.Forms.Label;
+        private mutable CbTimer : System.Windows.Forms.ComboBox;
+        private mutable CbHex : System.Windows.Forms.CheckBox;
+        private mutable LbInstr : System.Windows.Forms.Label;
+        private mutable LbFlag : System.Windows.Forms.Label;
+        private mutable GbAsm : System.Windows.Forms.GroupBox;
+        private mutable LbAsmNx : System.Windows.Forms.Label;
+        private mutable LbAsmPr : System.Windows.Forms.Label;
+        private mutable LbAsm : System.Windows.Forms.Label;
+    }
+}

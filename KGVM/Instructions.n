@@ -1,0 +1,405 @@
+﻿using Nemerle;
+using Nemerle.Collections;
+using Nemerle.Text;
+using Nemerle.Utility;
+using Nemerle.Imperative;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Console;
+using System.Text;
+
+using MijMacro;
+
+namespace MijStuff.VM2 {
+    public enum Instr {
+        | Brk 
+        | Push | Stor | Dup | Drop | Swap
+        | Dup_n | Drop_n | Swap_n | XChg
+        | Push_e | Push_z | Push_l | Push_g
+        | Add | Sub | Mul | Div | Rem | Cmp
+        | And | Ora | Xor | Not | Asr | Asl
+        | Add_f | Sub_f | Mul_f | Div_f | Rem_f
+        | Cmp_f | Ext_f | Red_f
+        | Jmp | Jsr | Ret | IntRet
+        | Je | Jne | Jz | Jnz | Jgt | Jlt | Jge | Jle
+        | Enter | Leave | Leave_r
+        | Ldloc | Stloc | Ldloc_u | Stloc_u
+        | Jmp_swch_vf
+        | Prto | Prti
+        | PChr | PStr | Itoa | Itoa_f | Atoi | Atoi_f
+        | COUNT
+    }
+    
+    public module VMUtils {
+        public mutable FloatConv1 : FloatInt = FloatInt();
+        public mutable FloatConv2 : FloatInt = FloatInt();
+        public mutable TS = StringBuilder();
+        
+        public LoadInstructions(vm : KGVM) : void {
+            // Stack/memory shit
+            vm.Instr[Instr.Push] = VMI(fun(vm) {
+                fori(0 <= i < vm.ITT.OperNum)
+                    vm.STK.Push(vm.ITT.Op[i]);
+            }, -1);
+            vm.Instr[Instr.Stor] = VMI(fun(vm) {
+                vm.ITT.Op[0] = vm.ITT.Op[1];
+            }, 2);
+            vm.Instr[Instr.Dup] = VMI(fun(vm) {
+                vm.STK.Dup();
+            });
+            vm.Instr[Instr.Dup_n] = VMI(fun(vm) {
+                vm.STK.Dup(vm.ITT.Op[0]);
+            }, 1);
+            vm.Instr[Instr.Drop] = VMI(fun(vm) {
+                vm.STK.Pointer--;
+            });
+            vm.Instr[Instr.Drop_n] = VMI(fun(vm) {
+                vm.STK.Pointer -= vm.ITT.Op[0];
+            }, 1);
+            vm.Instr[Instr.Swap] = VMI(fun(vm) {
+                vm.STK.Swap();
+            });
+            vm.Instr[Instr.Swap_n] = VMI(fun(vm) {
+                vm.STK.Swap(vm.ITT.Op[0]);
+            }, 1);
+            vm.Instr[Instr.XChg] = VMI(fun(vm) {
+                vm.ITT.Op[0] <-> vm.ITT.Op[1];
+            }, 2);
+            vm.Instr[Instr.Push_e] = VMI(fun(vm) {
+                vm.STK.Push(if(vm.Flg[Flags.Equal]) 1 else 0);
+            }, 1);
+            vm.Instr[Instr.Push_z] = VMI(fun(vm) {
+                vm.STK.Push(if(vm.Flg[Flags.Zero]) 1 else 0);
+            }, 1);
+            vm.Instr[Instr.Push_g] = VMI(fun(vm) {
+                vm.STK.Push(if(vm.Flg[Flags.Above]) 1 else 0);
+            }, 1);
+            vm.Instr[Instr.Push_l] = VMI(fun(vm) {
+                vm.STK.Push(if(vm.Flg[Flags.Below]) 1 else 0);
+            }, 1);
+            
+            // Arithmetics shit
+            vm.Instr[Instr.Add] = VMI(fun(vm) {
+                def result = unchecked(vm.ITT.Op[0] + vm.ITT.Op[1]);
+                vm.Flg[Flags.Zero] = (result == 0);
+                vm.STK.Push(result);
+            }, 2);
+            vm.Instr[Instr.Sub] = VMI(fun(vm) {
+                def result = unchecked(vm.ITT.Op[0] - vm.ITT.Op[1]);
+                vm.Flg[Flags.Zero] = (result == 0);
+                vm.STK.Push(result);
+            }, 2);
+            vm.Instr[Instr.Mul] = VMI(fun(vm) {
+                def result = unchecked(vm.ITT.Op[0] * vm.ITT.Op[1]);
+                vm.Flg[Flags.Zero] = (result == 0);
+                vm.STK.Push(result);
+            }, 2);
+            vm.Instr[Instr.Div] = VMI(fun(vm) {
+                def divisor = vm.ITT.Op[1];
+                when(divisor == 0) 
+                    throw VmDivizionByZero();
+                def result = vm.ITT.Op[0] / divisor;
+                vm.Flg[Flags.Zero] = (result == 0);
+                vm.STK.Push(result);
+            }, 2);
+            vm.Instr[Instr.Rem] = VMI(fun(vm) {
+                def divisor = vm.ITT.Op[1];
+                when(divisor == 0) 
+                    throw VmDivizionByZero();
+                def result = vm.ITT.Op[0] % divisor;
+                vm.Flg[Flags.Zero] = (result == 0);
+                vm.STK.Push(result);
+            }, 2);
+            vm.Instr[Instr.Cmp] = VMI(fun(vm) {
+                def lhs = vm.ITT.Op[0];
+                def rhs = vm.ITT.Op[1];
+                vm.Flg[Flags.Equal] = (lhs == rhs);
+                vm.Flg[Flags.Above] = (lhs > rhs);
+                vm.Flg[Flags.Below] = (lhs < rhs);
+                vm.Flg[Flags.Zero] = (lhs == 0);
+            }, 2);
+            
+            // Bitwise shit
+            vm.Instr[Instr.And] = VMI(fun(vm) {
+                def result = vm.ITT.Op[0] & vm.ITT.Op[1];
+                vm.Flg[Flags.Zero] = (result == 0);
+                vm.STK.Push(result);
+            }, 2);
+            vm.Instr[Instr.Ora] = VMI(fun(vm) {
+                def result = vm.ITT.Op[0] | vm.ITT.Op[1];
+                vm.Flg[Flags.Zero] = (result == 0);
+                vm.STK.Push(result);
+            }, 2);
+            vm.Instr[Instr.Xor] = VMI(fun(vm) {
+                def result = vm.ITT.Op[0] ^ vm.ITT.Op[1];
+                vm.Flg[Flags.Zero] = (result == 0);
+                vm.STK.Push(result);
+            }, 2);
+            vm.Instr[Instr.Not] = VMI(fun(vm) {
+                def result = ~vm.ITT.Op[0];
+                vm.Flg[Flags.Zero] = (result == 0);
+                vm.STK.Push(result);
+            }, 1);
+            vm.Instr[Instr.Asr] = VMI(fun(vm) {
+                def result = unchecked(vm.ITT.Op[0] >> vm.ITT.Op[1]);
+                vm.Flg[Flags.Zero] = (result == 0);
+                vm.STK.Push(result);
+            }, 2);
+            vm.Instr[Instr.Asl] = VMI(fun(vm) {
+                def result = unchecked(vm.ITT.Op[0] << vm.ITT.Op[1]);
+                vm.Flg[Flags.Zero] = (result == 0);
+                vm.STK.Push(result);
+            }, 2);
+            
+            // Floating point arithmetics shit
+            vm.Instr[Instr.Add_f] = VMI(fun(vm) {
+                FloatConv1.IntVal = vm.ITT.Op[0];
+                FloatConv2.IntVal = vm.ITT.Op[1];
+                FloatConv1.FVal += FloatConv2.FVal;
+                vm.Flg[Flags.Zero] = (FloatConv1.FVal == 0);
+                vm.STK.Push(FloatConv1.IntVal);
+            }, 2);
+            vm.Instr[Instr.Sub_f] = VMI(fun(vm) {
+                FloatConv1.IntVal = vm.ITT.Op[0];
+                FloatConv2.IntVal = vm.ITT.Op[1];
+                FloatConv1.FVal -= FloatConv2.FVal;
+                vm.Flg[Flags.Zero] = (FloatConv1.FVal == 0);
+                vm.STK.Push(FloatConv1.IntVal);
+            }, 2);
+            vm.Instr[Instr.Mul_f] = VMI(fun(vm) {
+                FloatConv1.IntVal = vm.ITT.Op[0];
+                FloatConv2.IntVal = vm.ITT.Op[1];
+                FloatConv1.FVal *= FloatConv2.FVal;
+                vm.Flg[Flags.Zero] = (FloatConv1.FVal == 0);
+                vm.STK.Push(FloatConv1.IntVal);
+            }, 2);
+            vm.Instr[Instr.Div_f] = VMI(fun(vm) {
+                FloatConv1.IntVal = vm.ITT.Op[0];
+                FloatConv2.IntVal = vm.ITT.Op[1];
+                when(FloatConv2.FVal == 0)
+                    throw VmDivizionByZero();
+                FloatConv1.FVal /= FloatConv2.FVal;
+                vm.Flg[Flags.Zero] = (FloatConv1.FVal == 0);
+                vm.STK.Push(FloatConv1.IntVal);
+            }, 2);
+            vm.Instr[Instr.Rem_f] = VMI(fun(vm) {
+                FloatConv1.IntVal = vm.ITT.Op[0];
+                FloatConv2.IntVal = vm.ITT.Op[1];
+                when(FloatConv2.FVal == 0)
+                    throw VmDivizionByZero();
+                FloatConv1.FVal %= FloatConv2.FVal;
+                vm.Flg[Flags.Zero] = (FloatConv1.FVal == 0);
+                vm.STK.Push(FloatConv1.IntVal);
+            }, 2);
+            vm.Instr[Instr.Cmp_f] = VMI(fun(vm) {
+                FloatConv1.IntVal = vm.ITT.Op[0];
+                FloatConv2.IntVal = vm.ITT.Op[1];
+                vm.Flg[Flags.Equal] = (FloatConv1.FVal == FloatConv2.FVal);
+                vm.Flg[Flags.Above] = (FloatConv1.FVal > FloatConv2.FVal);
+                vm.Flg[Flags.Below] = (FloatConv1.FVal < FloatConv2.FVal);
+                vm.Flg[Flags.Zero] = (FloatConv1.FVal == 0);
+            }, 2);
+            vm.Instr[Instr.Ext_f] = VMI(fun(vm) {
+                FloatConv1.FVal = (vm.ITT.Op[0] :> float);
+                vm.STK.Push(FloatConv1.IntVal);
+            }, 1);
+            vm.Instr[Instr.Red_f] = VMI(fun(vm) {
+                FloatConv1.IntVal = vm.ITT.Op[0];
+                vm.STK.Push(FloatConv1.FVal :> int);
+            }, 1);
+            
+            // Branching shit
+            vm.Instr[Instr.Jmp] = VMI(fun(vm) {
+                vm.PC = vm.ITT.Op[0];
+            }, 1);
+            vm.Instr[Instr.Je] = VMI(fun(vm) {
+                when(vm.Flg[Flags.Equal])
+                    vm.PC = vm.ITT.Op[0];
+            }, 1);
+            vm.Instr[Instr.Jne] = VMI(fun(vm) {
+                unless(vm.Flg[Flags.Equal])
+                    vm.PC = vm.ITT.Op[0];
+            }, 1);
+            vm.Instr[Instr.Jz] = VMI(fun(vm) {
+                when(vm.Flg[Flags.Zero])
+                    vm.PC = vm.ITT.Op[0];
+            }, 1);
+            vm.Instr[Instr.Jnz] = VMI(fun(vm) {
+                unless(vm.Flg[Flags.Zero])
+                    vm.PC = vm.ITT.Op[0];
+            }, 1);
+            vm.Instr[Instr.Jgt] = VMI(fun(vm) {
+                when(vm.Flg[Flags.Above])
+                    vm.PC = vm.ITT.Op[0];
+            }, 1);
+            vm.Instr[Instr.Jlt] = VMI(fun(vm) {
+                when(vm.Flg[Flags.Below])
+                    vm.PC = vm.ITT.Op[0];
+            }, 1);
+            vm.Instr[Instr.Jge] = VMI(fun(vm) {
+                when(vm.Flg[Flags.Above] || vm.Flg[Flags.Equal])
+                    vm.PC = vm.ITT.Op[0];
+            }, 1);
+            vm.Instr[Instr.Jle] = VMI(fun(vm) {
+                when(vm.Flg[Flags.Below] || vm.Flg[Flags.Equal])
+                    vm.PC = vm.ITT.Op[0];
+            }, 1);
+            
+            // Subroutine shit
+            vm.Instr[Instr.Jsr] = VMI(fun(vm) {
+                vm.SSR.Push(vm.PC);
+                vm.PC = vm.ITT.Op[0];
+            }, 1);
+            vm.Instr[Instr.Ret] = VMI(fun(vm) {
+                vm.PC = vm.SSR.Pop();
+            });
+            vm.Instr[Instr.IntRet] = VMI(fun(vm) {
+                vm.PC = vm.SSR.Pop(); vm.INTV.Pointer--;
+            });
+            
+            // Scope shit
+            vm.Instr[Instr.Enter] = VMI(fun(vm) {
+                mutable scope = vm.SCPV.DataR[1];
+                def amt = vm.ITT.Op[0];
+                if(scope == null) {
+                    scope = Scope(16);
+                    vm.SCPV.Push(scope);
+                } else vm.SCPV.Pointer++;
+                scope.StackPtr = if(amt > -1) 
+                    vm.STK.Pointer-amt else null;
+            }, 1);
+            vm.Instr[Instr.Leave] = VMI(fun(vm) {
+                def scope = vm.SCPV.Pop();
+                when(scope.StackPtr != null)
+                    vm.STK.Pointer = scope.StackPtr.Value;
+                scope.PurgeLocals();
+            });
+            vm.Instr[Instr.Leave_r] = VMI(fun(vm) {
+                def cached = vm.ITT.Op[0];
+                def scope = vm.SCPV.Pop();
+                when(scope.StackPtr != null)
+                    vm.STK.Pointer = scope.StackPtr.Value;
+                scope.PurgeLocals();
+                vm.STK.Push(cached);
+            }, 1);
+            vm.Instr[Instr.Ldloc] = VMI(fun(vm) {
+                def scope = vm.SCPV.Peek(0);
+                vm.STK.Push(scope.Loc[vm.ITT.Op[0]]);
+            }, 1);
+            vm.Instr[Instr.Stloc] = VMI(fun(vm) {
+                def scope = vm.SCPV.Peek(0);
+                scope.Loc[vm.ITT.Op[0]] = vm.ITT.Op[1];
+            }, 2);
+            vm.Instr[Instr.Ldloc_u] = VMI(fun(vm) {
+                def local = vm.ITT.Op[0];
+                when(local < 0) return;
+                def scope = vm.SCPV.Peek(-local);
+                vm.STK.Push(scope.Loc[vm.ITT.Op[1]]);
+            }, 2);
+            vm.Instr[Instr.Stloc_u] = VMI(fun(vm) {
+                def local = vm.ITT.Op[0];
+                when(local < 0) return;
+                def scope = vm.SCPV.Peek(-local);
+                scope.Loc[vm.ITT.Op[1]] = vm.ITT.Op[2];
+            }, 3);
+            
+            // Advanced shit
+            vm.Instr[Instr.Jmp_swch_vf] = VMI(fun(vm) {
+                def opnum = (vm.ITT.OperNum)/2;
+                def value = vm.STK.Pop();
+                fori(0 <= i < opnum) when(value == vm.ITT.Op[i*2]) {
+                    vm.PC = vm.ITT.Op[i*2+1]; break;
+                }
+            }, -1);
+            
+            // I/O shit
+            vm.Instr[Instr.Prto] = VMI(fun(vm) {
+                def port = vm.ITT.Op[0];
+                def data = vm.ITT.Op[1];
+                vm.DEV.Iter( (x) => x.Receive(port, data) );
+            }, 2);
+            vm.Instr[Instr.Prti] = VMI(fun(vm) {
+                def port = vm.ITT.Op[0];
+                foreach(dev in vm.DEV) {
+                    def data = dev.Request(port);
+                    unless(data == null) {
+                        vm.STK.Push(data.Value); break;
+                    }
+                }
+            }, 1);
+            
+            // Other shit
+            vm.Instr[Instr.PChr] = VMI(fun(vm) {
+                foreach(dx in vm.DEV) {
+                    def curpos = dx.Request(180);
+                    unless(curpos.HasValue) continue;
+                    def color = dx.Request(183).Value;
+                    dx.Receive(182, vm.ITT.Op[0]);
+                    dx.Receive(180, curpos.Value+1);
+                    dx.Receive(183, color);
+                    dx.Receive(184,1); break;
+                }
+            }, 1);
+            vm.Instr[Instr.PStr] = VMI(fun(vm) {
+                mutable chr = 0b; mutable pos = 0;
+                def addr = vm.ITT.Op[0];
+                foreach(dx in vm.DEV) {
+                    def curpos = dx.Request(180);
+                    unless(curpos.HasValue) continue;
+                    def color = dx.Request(183).Value;
+                    while(true) {
+                        chr = vm.MemI[addr+pos]; pos++;
+                        dx.Receive(183, color);
+                        when(chr == 0) break;
+                        dx.Receive(182, chr);
+                        dx.Receive(180, curpos.Value+pos);
+                    } dx.Receive(184,1); break;
+                }
+            }, 1);
+            vm.Instr[Instr.Itoa] = VMI(fun(vm) {
+                def stri = vm.ITT.Op[1].ToString();
+                def addr = vm.ITT.Op[0];
+                fori(0 <= i < stri.Length)
+                    vm.MemI[addr+i] = stri[i] :> byte;
+                vm.MemI[addr+stri.Length] = 0b;
+            }, 2); 
+            vm.Instr[Instr.Itoa_f] = VMI(fun(vm) {
+                FloatConv1.IntVal = vm.ITT.Op[1];
+                def stri = FloatConv1.FVal.ToString();
+                def addr = vm.ITT.Op[0];
+                fori(0 <= i < stri.Length)
+                    vm.MemI[addr+i] = stri[i] :> byte;
+                vm.MemI[addr+stri.Length] = 0b;
+            }, 2);
+            vm.Instr[Instr.Atoi] = VMI(fun(vm) {
+                mutable addr = vm.ITT.Op[0];
+                mutable chr = 0b; mutable data = 0;
+                ignore TS.Clear();
+                while(true) {
+                    chr = vm.MemI[addr]; addr++;
+                    when(chr == 32) continue;
+                    when(chr == 0) break;
+                    ignore TS.Append(chr :> char);
+                }
+                ignore Int32.TryParse(TS.ToString(), out data);
+                vm.STK.Push(data);
+            }, 1);
+            vm.Instr[Instr.Atoi_f] = VMI(fun(vm) {
+                mutable addr = vm.ITT.Op[0];
+                mutable chr = 0b;
+                ignore TS.Clear();
+                while(true) {
+                    chr = vm.MemI[addr]; addr++;
+                    when(chr == 32) continue;
+                    when(chr == 0) break;
+                    ignore TS.Append(chr :> char);
+                }
+                ignore Single.TryParse(TS.ToString(), 
+                    out FloatConv1.FVal);
+                vm.STK.Push(FloatConv1.IntVal);
+            }, 1);
+        }
+    }
+}
