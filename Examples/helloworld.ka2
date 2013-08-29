@@ -1,15 +1,29 @@
 @program !org [0x200]
+
 prto [183 224]
 pstr [%hello]
 jsr [%newline]
+
 pstr [%text2]
 add [2 3]
 mul [s 5]
 ext.f [s]
 add.f [s 0.2f]
+
 itoa.f [%buf s]
 prto [183 163]
 pstr [%buf]
+
+jsr [%newline]
+prto [183 224]
+pstr [%text3]
+
+stor [*0x10 0xABCD]
+push [16]
+itoa [%buf *s(b)]
+prto [183 163]
+pstr [%buf]
+
 brk
 
 |newline|
@@ -26,4 +40,5 @@ ret
 
 |hello| !db ["Hello World!",0]
 |text2| !db ["(2 + 3) * 5 + 0.2 = ",0]
+|text3| !db ["Byte from memory at 0x10 is ",0]
 |buf| !rep [0,10]
