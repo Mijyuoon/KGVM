@@ -1,12 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
+using System.Reflection;
+using System.IO;
+
 using MijStuff.VM2.Test;
+using MijMacro;
 
 module Program {
     public mutable MAIN : MainForm;
     public mutable MON : MonitorForm;
     Main(args : array[string]) : void {
+        AppDomain.CurrentDomain.UnhandledException += fun(_, e) {
+            mutable ex = e.ExceptionObject :> Exception;
+            while(ex is TypeInitializationException || ex is TargetInvocationException)
+                ex = ex.InnerException;
+            File.WriteAllText("last_error.txt", ex.ToString());
+            ignore MessageBox.Show("Fatal error occurred! See last_error.txt for details", 
+                "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         def filenm = if(args.Length > 0) args[0] else "";
