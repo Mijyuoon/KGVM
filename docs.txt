@@ -1,0 +1,260 @@
+Configuration file
+------------------------
+memorySize		- Memory amount (in bytes) that will be available to VM
+systemPerf		- System speed. Has no units of measure, may not work as expected
+stackSize		- Size (in machine words, 4 bytes) of main and call stacks
+stackSizeV		- Size of internal VM's stacks. Don't touch unless you know what you're doing
+initLocals		- Number of local variables to allocate per scope
+hddFileName		- Image file for HardDrive device
+progFileName	- Default file to load when no arguments are provided
+enableDevices	- List of devices that will be used by VM (more in "Devices" section)
+
+Virtual machine
+------------------------
+VM uses following flags: 00000000 000BAEZR
+	B - Below (less)
+	A - Above (greater)
+	E - Equal
+	Z - Zero
+	R - Running
+	
+Following interrupts are supported:
+	00 - Division by zero
+	01 - Stack overflow
+	02 - Stack underflow
+	03 - Memory read/write error
+	04 - Malformed operand
+	05 - Malformed instruction
+	0F - Fatal CPU Error
+	
+Note: interrupt 04 is usually fatal because program counter may point mid-instruction when this error happens
+(It's becuase this error usually happens during instruction decoding when operand's payload size is invalid)
+
+Interrupt vector table is located at 0x100-0x1FF (each entry has machine word length, 4 bytes)
+If entry contains value other than zero then interrupt handler at this address will be called
+
+Note: program excecution begins from address 0x200 and you must specify that in source code
+	
+Bytecode format
+------------------------
+Instruction format: IIIIIIII NNNN0000 <Operands>
+	I	- opcode
+	N	- operand number
+	
+Operand format: 0PVVVTTT <Payload>
+	P	- set if operand is pointer
+	V	- payload size (in bytes)
+	T	- operand type
+	
+Operand types:
+	00	- 1 byte immediate
+	01	- 2 byte immediate
+	02	- full size immediate
+	04	- value from stack (1 byte)
+	05	- value from stack (2 bytes)
+	06	- value from stack (full)
+
+Scope system
+------------------------
+Virtual machine has scope system that works this way:
+	1) scope is entered using enter [N] instruction
+	   value of (StackPointer-N) is saved when N > -1
+	   new set of local variables is initialized for current scope
+	  
+	2) scope is exited using leave or leave.r instruction
+	   upon exiting stack pointer is restored to previously saved value (if any)
+	   if leave.r was used it's operand's value is pushed to stack
+
+Using N > 0 allows passing parameters to subroutines without worrying about forgetting to pop all of them
+They will be removed automatically upon exiting subroutine's scope, it's similar to stack frames in x86
+					 
+Devices
+------------------------
+Console display - 80x36 characters, 256 color palette
+Add ConsoleDisplay to device list in config in order to enable
+Has 2 modes:
+	1) automatical redraw after changing any character
+	2) manual redraw only
+Writing to ports:
+	180 - set character pointer to specified value
+	181 - set operating mode to specified value (0 - auto redraw, 1 - manual)
+	182 - set ASCII code of character to specified value
+	183 - set character color to specified value (Foreground | Background << 8)
+	184 - redraw screen when specified value is greater than zero
+Reading from ports:
+	180 - return character pointer value
+	181 - return current operating mode
+	182 - return ASCII code of character
+	183 - return character color (Foreground | Background << 8)
+
+------------------------
+Graphical display - 800x600 pixels, full RGB palette
+Add GraphicDisplay to device list in config in order to enable
+
+Device supports 2 modes:
+	1) direct video memory access, pixels are stored in RGBA format, 1 byte per each component
+	   current location is pointed by (YCoord*32768+XCoord)
+	   
+	2) pixel access, pixel are represented as int32 (Red | Green << 8 | Blue << 16)
+	   current location is pointed by XCoord and YCoord and converted internally
+	   Note: you can't set alpha of pixel using ths mode
+	   
+Writing to ports:
+	101 - set XCoord to specified value
+	102 - set YCoord to specified value
+	103 - set operating mode to specified value (0 - direct, 2 - pixel)
+	104 - set pixel value according to current mode
+	105 - redraw screen when specified value is greater than zero
+
+Reading from ports:
+	101 - return XCoord value
+	102 - return YCoord value
+	103 - return current operating mode
+	104 - return pixel data according to current mode
+
+------------------------
+Keyboard - has buffer that holds 16 keystrokes
+Add Keyboard to device list in config in order to enable
+Reading from ports:
+	120 - return number of keystrokes in buffer
+	121 - remove keystroke from buffer and return it
+
+------------------------
+Hard drive - sector size is 512 bytes, image file can be changed in config
+Add HardDrive to device list in config in order to enable
+Note: reading/writing operations automatically increment current sector pointer
+
+Writing to ports:
+    90 - set current sector pointer to specified value
+	91 - read current sector into memory starting from specified address
+	92 - write 512 bytes of memory to current sector starting from specifed address
+	
+Reading from ports:
+	90 - return current sector pointer value
+	91 - return status of last operation (0 for no error)
+	92 - return number of sectors in current image file
+	
+Assembler syntax
+------------------------
+Program must begin from @program keyword
+Operands are written in square brackets and separated by whitespaces
+Parameters to preprocessor directives are separated by commas instead
+Labels are denoted by vertical lines on each side (e.g. |test1|)
+Comments start from semicolon and continue to the end of line
+Multiple instructions can be put on single line
+
+Preprocessor directives:
+	!db	[...]	- includes data to output file, supports string literals and numbers
+	!rep [A,N]	- puts byte A to output file N times
+	!org [A]	- fills output file with zeros from current offset to offset A
+	!fi [P]		- puts file contents to output file (P should be string literal with path)
+	
+Example program:
+	@program
+	!org [0x200] 		;VM starts program execution from 0x200
+	add [2 3]			;push sum of 2 and 3 to stack
+	itoa [%buf s]		;convert value from stack to string
+	prto [183 224]		;set current text color (more in "Devices" section)
+	pstr [%buf]			;print string representation of number
+	brk					;halt VM
+	|buf| !rep [0,10]	;10 byte buffer for string
+
+Instructions
+------------------------
+00	brk					Halt VM
+01	push [...]			Push values to stack (this is variadic instruction)
+02	stor [D S]			Write value of S to memory location D
+03	dup					Duplicate top value on stack
+04	drop				Remove top value from stack
+05	swap				Swap 2 top values on stack
+06	dup.n [N]			Duplicate N top values on stack
+07	drop.n [N]			Remove N top values from stack
+08	swap.n [N]			Swap N top values on stack
+09	xchg [A B]			Exchange balues of A and B
+0A	push.e				Push 1 if flag E is set, 0 otherwise
+0B	push.z				Push 1 if flag Z is set, 0 otherwise
+0C	push.l				Push 1 if flag B is set, 0 otherwise
+0D	push.g				Push 1 if flag A is set, 0 otherwise
+0E	add [A B]			Adddition
+0F	sub [A B]			Subtracttion
+10	mul [A B]			Multiplication
+11	div [A B]			Division
+12	rem [A B]			Modulo
+13	cmp [A B]			Comparison (zero is only checked on A)
+14	and [A B]			Bitwise AND
+15	ora [A B]			Bitwise OR
+16	xor [A B]			Bitwise XOR
+17	not [A]				Bitwise NOT
+18	asr [A B]			Bit shift right
+19	asl [A B]			Bit shift left
+1A	add.f [A B]			Floating point addition
+1B	sub.f [A B]			Floating point subtraction
+1C	mul.f [A B]			Floating point multiplication
+1D	div.f [A B]			Floating point division
+1E	rem.f [A B]			Floating point modulo
+1F	cmp.f [A B]			Floating point comparison
+20	ext.f [A]			Extend integer to float
+21	red.f [A]			Reduce float to integer
+22	jmp [D]				Unconditional jump
+23	jsr [D]				Jump to subroutine
+24	ret					Return from subroutine
+25	intret				Return from interrupt handler (DON'T use anywhere else)
+26	je [D]				Jump if equal
+27	jne [D]				Jump if not equal
+28	jz [D]				Jump if zero
+29	jnz [D]				Jump if not zero
+2A	jgt [D]				Jump if greater
+2B	jlt [D]				Jump if less
+2C	jge [D]				Jump if greater or equal
+2D	jle [D]				Jump if less or equal
+2E	enter [N]			Enter scope (more info in "Scope system" section)
+2F	leave				Exit scope
+30	leave.r [A]			Exit scope and push A to stack
+31	ldloc [N]			Push Nth local variable to stack
+32	ldloc.u [U N]		Push Nth local from Uth outer scope to stack
+33	stloc [N A]			Set Nth local variable to A
+34	stloc.u [U N A]		Set Nth local from Uth outer scope to A
+35	jmp.swch.vf [...]	// TODO: Make good documentation for this one
+36	prto [P A]			Write A to port P
+37	prti [P]			Read from port P and push value to stack
+38	pchr [A]			Print character with ASCII code A (console screen must be enabled)
+39	pstr [S]			Print null-terminated string at address D (console screen must be enabled)
+3A	itoa [D A]			Convert number A to string and store at address D
+3B	itoa.f [D A]		Same as itoa but for floating point numbers
+3C	atoi [S]			Convert string (at address S) to number and push to stack
+3D	atoi.f [S]			Same as atoi but for floating point numbers
+
+All math and bitwise instructions change zero flag based on result (which is pushed to stack)
+Note: there are some "variadic" instructions that can accept up to 15 operands
+
+Operands
+------------------------
+Operands can have following format:
+	123		- decimal number
+	0x1ff	- hexadecimal number
+	123.0f	- floating point number
+	s		- stack (will pop top value)
+	*123	- pointer from number (dec)
+	*0x1ff	- pointer from number (hex)
+	*s		- pointer from top value on stack
+	%test	- label address
+	&test	- pointer from label address
+	
+By default numbers occupy as few bytes in memory as they can (but label addresses always have full size)
+To force number to have full size (machine word length, 4 bytes) add $ in front of it (e.g. $123, $0x1ff)
+
+Operands can have following suffixes:
+	(b)		- uses only 1 first byte of operand (e.g. 0x00123456(b) is 0x56)
+	(h)		- uses 2 first bytes of operand (e.g. 0x00123456(h) is 0x3456)
+	(w)		- uses full operand, assumed when no suffix is present
+	
+Usage of assembler/disassembler
+------------------------
+Assembler is used this way: kgasm [-emit-lb] [-load-lb <filename>] <source file> [result file]
+Command line options:
+	-emit-lb	- generate file with offsets of all labels in source file (will be named as result file but with .kal extension)
+	-load-lb	- load label offsets from previously saved file (this can be used to separate program to different files)
+
+Disassembler is used this way: kgdasm [-offsets] <source file> [result file]
+Command line options:
+	-offsets	- add label |of_XXXX| (where X is instruction offset) before each instruction
