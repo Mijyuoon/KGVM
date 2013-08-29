@@ -52,7 +52,9 @@ stor [&v_cx s]
 cmp [&v_cx 640]
 jlt [%loop]
 
-prto [183 224] pchr [127]
+prto [183 224] ;FOR DEBUG PURPOSE
+pchr [127]     ;FOR DEBUG PURPOSE
+
 stor [&v_cx 0]
 add [&v_cy 1]
 stor [&v_cy s]
