@@ -1,0 +1,70 @@
+@program !org [0x200]
+
+prto[103 2]
+
+|loop|
+stor [&v_zx 0]
+stor [&v_zy 0]
+stor [&v_n 0]
+
+|inner_loop|
+mul.f [&v_zx &v_zx]
+stor [*12 s]
+mul.f [&v_zy &v_zy]
+stor [*16 s]
+add.f [*12 *16]
+cmp.f [s 4.0f]
+jge [%exit_inner]
+cmp [&v_n 0xffff]
+jge [%exit_inner]
+
+sub.f [*12 *16]
+ext.f [&v_cx]
+div.f [s 640.0f]
+mul.f [s 2.5f]
+sub.f [s 2.0f]
+add.f [s s]
+stor [&v_nz s]
+
+mul.f [&v_zx &v_zy]
+mul.f [s 2.0f]
+ext.f [&v_cy]
+div.f [s 480.0f]
+mul.f [s 2.0f]
+sub.f [s 1.0f]
+add.f [s s]
+stor [&v_zy s]
+
+stor [&v_zx &v_nz]
+
+add [&v_n 1024]
+stor [&v_n s]
+jmp [%inner_loop]
+
+|exit_inner|
+sub [0xffffff &v_n]
+sub [0xffffff s]
+prto [101 &v_cx]
+prto [102 &v_cy]
+prto [104 s]
+add [&v_cx 1]
+stor [&v_cx s]
+cmp [&v_cx 640]
+jlt [%loop]
+
+prto [183 224] pchr [127]
+stor [&v_cx 0]
+add [&v_cy 1]
+stor [&v_cy s]
+cmp [&v_cy 480]
+jlt [%loop]
+
+prto [105 1]
+brk
+
+|v_cx| !rep [0,4]
+|v_cy| !rep [0,4]
+|v_n|  !rep [0,4]
+|v_zx| !rep [0,4]
+|v_zy| !rep [0,4]
+|v_nz| !rep [0,4]

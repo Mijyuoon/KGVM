@@ -1,0 +1,29 @@
+@program !org [0x200]
+prto [183 224]
+pstr [%hello]
+jsr [%newline]
+pstr [%text2]
+add [2 3]
+mul [s 5]
+ext.f [s]
+add.f [s 0.2f]
+itoa.f [%buf s]
+prto [183 163]
+pstr [%buf]
+brk
+
+|newline|
+enter [0]
+prti [183] 
+prti [180]
+div [s 80] 
+add [s 1]
+mul [s 80] 
+prto [180 s] 
+prto [183 s]
+leave 
+ret
+
+|hello| !db ["Hello World!",0]
+|text2| !db ["(2 + 3) * 5 + 0.2 = ",0]
+|buf| !rep [0,10]

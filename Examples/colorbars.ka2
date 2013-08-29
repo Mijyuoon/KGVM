@@ -1,0 +1,110 @@
+@program !org [0x200]
+stor [*0 0]
+stor [*4 0]
+
+prto [103 2]
+jmp [%program]
+
+|reduce_color|
+enter [0]
+push [*0 *4 *8]
+
+stor [*0 *128]
+stor [*4 *128]
+stor [*8 *128]
+
+and [*0 0xff0000]
+asr [s 16]
+mul [s *12]
+asr [s 8]
+asl [s 16]
+stor [*0 s]
+
+and [*4 0xff00]
+asr [s 8]
+mul [s *12]
+asr [s 8]
+asl [s 8]
+stor [*4 s]
+
+and [*8 0xff]
+mul [s *12]
+asr [s 8]
+stor [*8 s]
+
+ora [*0 *4]
+ora [s *8]
+stor [*128 s]
+
+stor [*8 s]
+stor [*4 s]
+stor [*0 s]
+leave ret
+
+|get_random|
+enter [0]
+prti [11]
+stor [*128 s]
+leave
+ret
+
+|chk_bounds|
+enter [0]
+cmp [*0 320]
+jlt [%chk_bounds__q]
+;prto [105 1]
+stor [*0 0]
+|chk_bounds__q|
+leave
+ret
+
+|program|
+rem [*0 8]
+cmp [s 0]
+jne [%skip_random]
+jsr [%get_random]
+
+|skip_random|
+add [*0 1]
+stor [*0 s]
+jsr [%chk_bounds]
+stor [*4 0]
+
+|inner_loop|
+push [*128]
+
+push [256]
+mul [s *4]
+asr [s 8]
+sub [256 s]
+stor [*12 s]
+
+jsr [%reduce_color]
+stor [*132 *128]
+jsr [%get_random]
+xchg [*132 *128]
+and [*132 0xff]
+mul [s 64]
+asr [s 8]
+stor [*132 s]
+
+push [256]
+mul [s *132]
+asr [s 8]
+sub [256 s]
+stor [*12 s]
+
+jsr [%reduce_color]
+
+prto [101 *0]
+prto [102 *4]
+prto [104 *128]
+
+stor [*128 s]
+add [*4 1]
+stor [*4 s]
+cmp [*4 240]
+jlt [%inner_loop]
+
+prto [105 1]
+jmp [%program]

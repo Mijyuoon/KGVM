@@ -5,5 +5,6 @@ stackSizeV: 80
 initLocals: 32
 progFileName: program.kgvm
 enableDevices:
+  - GraphicDisplay
   - ConsoleDisplay
   - Keyboard
